@@ -1,6 +1,7 @@
 {
   "extends": "../../packages/config/tsconfig/nest.json",
   "compilerOptions": {
+    "outDir": "dist",
     "baseUrl": "./",
     "paths": {
       "@financial-martec/contracts": ["../../packages/contracts/src"],

@@ -7,15 +7,15 @@
     "node": ">=20.11.0"
   },
   "scripts": {
-    "dev": "npx turbo@2.0.14 run dev --parallel",
-    "build": "npx turbo@2.0.14 run build",
-    "lint": "npx turbo@2.0.14 run lint",
-    "typecheck": "npx turbo@2.0.14 run typecheck",
-    "test": "npx turbo@2.0.14 run test",
-    "db:generate": "npx pnpm@9.12.3 --filter @financial-martec/api prisma generate",
-    "db:migrate": "npx pnpm@9.12.3 --filter @financial-martec/api prisma migrate dev",
-    "db:deploy": "npx pnpm@9.12.3 --filter @financial-martec/api prisma migrate deploy",
-    "db:seed": "npx pnpm@9.12.3 --filter @financial-martec/api prisma db seed"
+    "dev": "corepack pnpm --parallel --filter @financial-martec/api --filter @financial-martec/web --filter @financial-martec/worker dev",
+    "build": "corepack pnpm -r --if-present build",
+    "lint": "corepack pnpm -r --if-present lint",
+    "typecheck": "corepack pnpm -r --if-present typecheck",
+    "test": "corepack pnpm -r --if-present test",
+    "db:generate": "corepack pnpm --filter @financial-martec/api prisma generate",
+    "db:migrate": "corepack pnpm --filter @financial-martec/api prisma migrate dev",
+    "db:deploy": "corepack pnpm --filter @financial-martec/api prisma migrate deploy",
+    "db:seed": "corepack pnpm --filter @financial-martec/api prisma db seed"
   },
   "devDependencies": {
     "turbo": "2.0.14"
