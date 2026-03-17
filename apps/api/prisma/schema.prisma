@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum SyncRunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+enum SyncIssueSeverity {
+  INFO
+  WARNING
+  ERROR
+}
+
+model User {
+  id               String         @id @default(uuid())
+  name             String
+  email            String         @unique
+  username         String?        @unique
+  passwordHash     String
+  status           UserStatus     @default(ACTIVE)
+  mfaEnabled       Boolean        @default(false)
+  lastLoginAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  roles            UserRole[]
+  sessions         Session[]
+  auditEvents      AuditEvent[]
+  loginAttempts    LoginAttempt[]
+  syncRuns         PedagogicalSyncRun[]
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Session {
+  id               String        @id @default(uuid())
+  userId           String
+  refreshTokenHash String        @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  status           SessionStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  id          String    @id @default(cuid())
+  identifier  String
+  ipAddress   String?
+  succeeded   Boolean
+  lockedUntil DateTime?
+  attemptedAt DateTime  @default(now())
+  metadata    Json?
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([identifier, attemptedAt])
+  @@index([lockedUntil])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actorType   String
+  action      String
+  resourceType String
+  resourceId  String?
+  ipAddress   String?
+  requestId   String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  actorUser   User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+model PedagogicalCompanySnapshot {
+  id              String   @id @default(uuid())
+  sourceId        String   @unique
+  name            String
+  legalName       String?
+  taxId           String?
+  email           String?
+  phone           String?
+  payloadHash     String
+  sourceUpdatedAt DateTime?
+  lastSyncedAt    DateTime @default(now())
+  data            Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  students        PedagogicalStudentSnapshot[]
+
+  @@index([name])
+  @@index([taxId])
+}
+
+model PedagogicalStudentSnapshot {
+  id                String                      @id @default(uuid())
+  sourceId          String                      @unique
+  companySourceId   String
+  companySnapshotId String?
+  name              String
+  cpf               String
+  email             String?
+  payloadHash       String
+  birthDate         DateTime?
+  sourceUpdatedAt   DateTime?
+  lastSyncedAt      DateTime                    @default(now())
+  data              Json
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  companySnapshot   PedagogicalCompanySnapshot? @relation(fields: [companySnapshotId], references: [id], onDelete: SetNull)
+
+  @@index([companySourceId])
+  @@index([name])
+  @@index([cpf])
+}
+
+model PedagogicalSyncRun {
+  id                String                 @id @default(uuid())
+  triggeredByUserId String?
+  mode              String
+  status            SyncRunStatus          @default(PENDING)
+  startedAt         DateTime               @default(now())
+  finishedAt        DateTime?
+  summary           Json?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  triggeredByUser   User?                  @relation(fields: [triggeredByUserId], references: [id], onDelete: SetNull)
+  issues            PedagogicalSyncIssue[]
+
+  @@index([status, startedAt])
+}
+
+model PedagogicalSyncIssue {
+  id             String            @id @default(cuid())
+  syncRunId      String
+  entityType     String
+  entitySourceId String?
+  severity       SyncIssueSeverity
+  code           String
+  message        String
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+  syncRun        PedagogicalSyncRun @relation(fields: [syncRunId], references: [id], onDelete: Cascade)
+
+  @@index([syncRunId, severity])
+}

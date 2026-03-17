@@ -1,0 +1,10 @@
+process.env.NODE_ENV = 'test';
+process.env.APP_PORT = '4000';
+process.env.APP_URL = 'http://localhost:4000';
+process.env.CORS_ORIGIN = 'http://localhost:3000';
+process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/financial_martec';
+process.env.REDIS_URL = 'redis://localhost:6379';
+process.env.JWT_ACCESS_SECRET = 'test-access-secret-123456';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-123456';
+process.env.INTERNAL_SYNC_SECRET = 'test-internal-secret-123456';
+process.env.PEDAGOGICAL_API_BASE_URL = 'https://api.oriztech.com';

@@ -1,0 +1,30 @@
+{
+  "extends": "../../packages/config/tsconfig/next.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@financial-martec/contracts": [
+        "../../packages/contracts/src"
+      ],
+      "@financial-martec/contracts/*": [
+        "../../packages/contracts/src/*"
+      ],
+      "@financial-martec/ui": [
+        "../../packages/ui/src"
+      ],
+      "@/*": [
+        "./*"
+      ]
+    },
+    "allowJs": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
