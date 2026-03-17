@@ -7,17 +7,18 @@
     "node": ">=20.11.0"
   },
   "scripts": {
-    "dev": "corepack pnpm --parallel --filter @financial-martec/api --filter @financial-martec/web --filter @financial-martec/worker dev",
+    "dev": "dotenv -e .env -- corepack pnpm --parallel --filter @financial-martec/api --filter @financial-martec/web --filter @financial-martec/worker dev",
     "build": "corepack pnpm -r --if-present build",
     "lint": "corepack pnpm -r --if-present lint",
     "typecheck": "corepack pnpm -r --if-present typecheck",
     "test": "corepack pnpm -r --if-present test",
-    "db:generate": "corepack pnpm --filter @financial-martec/api prisma generate",
-    "db:migrate": "corepack pnpm --filter @financial-martec/api prisma migrate dev",
-    "db:deploy": "corepack pnpm --filter @financial-martec/api prisma migrate deploy",
-    "db:seed": "corepack pnpm --filter @financial-martec/api prisma db seed"
+    "db:generate": "dotenv -e .env -- corepack pnpm --filter @financial-martec/api prisma generate",
+    "db:migrate": "dotenv -e .env -- corepack pnpm --filter @financial-martec/api prisma migrate dev",
+    "db:deploy": "dotenv -e .env -- corepack pnpm --filter @financial-martec/api prisma migrate deploy",
+    "db:seed": "dotenv -e .env -- corepack pnpm --filter @financial-martec/api prisma db seed"
   },
   "devDependencies": {
+    "dotenv-cli": "^8.0.0",
     "turbo": "2.0.14"
   }
 }

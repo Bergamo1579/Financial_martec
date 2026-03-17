@@ -90,6 +90,45 @@ docker compose up --build
 
 Para Coolify, use os `Dockerfile`s por servico e siga [docs/coolify.md](./docs/coolify.md).
 
+## Windows local
+
+Para rodar no Windows sem Docker local:
+
+1. Instale `Node.js 20.11+`
+2. Abra `PowerShell` na raiz do repositorio
+3. Habilite o Corepack:
+
+```bash
+corepack enable
+```
+
+4. Instale as dependencias:
+
+```bash
+corepack pnpm install
+```
+
+5. Crie o `.env` a partir do `.env.example` ou use conexoes externas de Postgres e Redis
+6. Gere Prisma e aplique o banco:
+
+```bash
+corepack pnpm db:generate
+corepack pnpm db:deploy
+corepack pnpm db:seed
+```
+
+7. Suba tudo:
+
+```bash
+corepack pnpm dev
+```
+
+Depois disso:
+
+- `web`: `http://localhost:3000`
+- `api`: `http://localhost:4000`
+- `swagger`: `http://localhost:4000/reference`
+
 ## Servicos para criar no Coolify
 
 - `Database_Financial` em `PostgreSQL 16`
