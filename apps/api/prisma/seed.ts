@@ -1,42 +1,29 @@
 import 'dotenv/config';
 import argon2 from 'argon2';
 import { PrismaClient } from '@prisma/client';
-import { roles } from '@financial-martec/contracts';
+import { permissions, rolePermissions, roles } from '@financial-martec/contracts';
 
 const prisma = new PrismaClient();
 
-const permissions = [
-  {
-    name: 'companies.read',
-    description: 'Visualizar empresas sincronizadas do pedagógico',
-  },
-  {
-    name: 'students.read',
-    description: 'Visualizar alunos sincronizados do pedagógico',
-  },
-  {
-    name: 'audit.read',
-    description: 'Visualizar eventos de auditoria',
-  },
-  {
-    name: 'sync.manage',
-    description: 'Disparar sincronização manual do pedagógico',
-  },
-];
-
-const rolePermissionMap: Record<(typeof roles)[number], string[]> = {
-  owner: permissions.map((permission) => permission.name),
-  admin_financeiro: ['companies.read', 'students.read', 'audit.read', 'sync.manage'],
-  analista_financeiro: ['companies.read', 'students.read'],
-  auditor: ['companies.read', 'students.read', 'audit.read'],
+const permissionDescriptions: Record<(typeof permissions)[number], string> = {
+  'companies.read': 'Visualizar empresas sincronizadas do pedagogico',
+  'students.read': 'Visualizar alunos sincronizados do pedagogico',
+  'audit.read': 'Visualizar eventos de auditoria',
+  'sync.manage': 'Disparar sincronizacao manual do pedagogico',
+  'iam.users.read': 'Visualizar usuarios internos e seus perfis',
+  'iam.users.manage': 'Criar usuarios internos e atualizar status/perfis',
+  'iam.roles.read': 'Visualizar catalogo de perfis e permissoes',
 };
 
 async function main() {
-  for (const permission of permissions) {
+  for (const permissionName of permissions) {
     await prisma.permission.upsert({
-      where: { name: permission.name },
-      update: { description: permission.description },
-      create: permission,
+      where: { name: permissionName },
+      update: { description: permissionDescriptions[permissionName] },
+      create: {
+        name: permissionName,
+        description: permissionDescriptions[permissionName],
+      },
     });
   }
 
@@ -44,15 +31,15 @@ async function main() {
     const role = await prisma.role.upsert({
       where: { name: roleName },
       update: {
-        description: `Perfil padrão ${roleName} do Financial Martec`,
+        description: `Perfil padrao ${roleName} do Financial Martec`,
       },
       create: {
         name: roleName,
-        description: `Perfil padrão ${roleName} do Financial Martec`,
+        description: `Perfil padrao ${roleName} do Financial Martec`,
       },
     });
 
-    for (const permissionName of rolePermissionMap[roleName]) {
+    for (const permissionName of rolePermissions[roleName]) {
       const permission = await prisma.permission.findUniqueOrThrow({
         where: { name: permissionName },
       });

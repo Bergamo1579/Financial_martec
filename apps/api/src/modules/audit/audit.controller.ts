@@ -1,21 +1,23 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Roles } from '@/common/decorators/roles.decorator';
+import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Permissions } from '@/common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
-import { AuditService } from './audit.service';
+import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { AuditEventsPageDto } from './dto/audit-response.dto';
 import { QueryAuditEventsDto } from './dto/query-audit-events.dto';
+import { AuditService } from './audit.service';
 
 @ApiTags('Audit')
 @ApiCookieAuth('fm_access_token')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('audit.read')
 @Controller('audit')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get('events')
-  @Roles('owner', 'admin_financeiro', 'auditor')
-  @ApiOperation({ summary: 'Lista eventos de auditoria' })
+  @ApiOperation({ summary: 'Lista eventos de auditoria com filtros operacionais' })
+  @ApiOkResponse({ type: AuditEventsPageDto })
   async list(@Query() query: QueryAuditEventsDto) {
     return this.auditService.list(query);
   }

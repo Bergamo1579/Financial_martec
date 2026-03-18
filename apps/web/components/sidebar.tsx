@@ -7,7 +7,7 @@ import { LogoutButton } from './logout-button';
 const items = [
   {
     href: '/' as const,
-    label: 'Visão técnica',
+    label: 'Visao tecnica',
   },
   {
     href: '/empresas' as const,
@@ -16,6 +16,10 @@ const items = [
   {
     href: '/alunos' as const,
     label: 'Alunos',
+  },
+  {
+    href: '/docs' as const,
+    label: 'Documentacao',
   },
 ];
 
@@ -26,9 +30,9 @@ export function Sidebar() {
     <aside className="shell-sidebar">
       <div className="brand-block">
         <span className="brand-kicker">Financial Martec</span>
-        <h1 className="shell-title">Backoffice financeiro com leitura segura do pedagógico.</h1>
+        <h1 className="shell-title">Backoffice financeiro com leitura segura do pedagogico.</h1>
         <p className="shell-copy">
-          Base operacional para autenticação, auditoria, sincronização e consulta.
+          Base operacional para autenticacao, auditoria, sincronizacao e consulta.
         </p>
       </div>
 

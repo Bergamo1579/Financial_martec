@@ -1,37 +1,43 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiCookieAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
+import { Permissions } from '@/common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
+import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import { getRequestId } from '@/common/lib/request.util';
 import type { AuthenticatedUser } from '@/modules/auth/auth.types';
 import { QueryStudentsDto } from '@/modules/integration/pedagogical/dto/query-students.dto';
+import { StudentDetailDto, StudentsPageDto } from './dto/student-response.dto';
 import { StudentsService } from './students.service';
 
 @ApiTags('Alunos')
 @ApiCookieAuth('fm_access_token')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('owner', 'admin_financeiro', 'analista_financeiro', 'auditor')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@Permissions('students.read')
 @Controller('alunos')
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lista alunos sincronizados do pedagógico' })
+  @ApiOperation({ summary: 'Lista alunos do snapshot local do pedagogico' })
+  @ApiOkResponse({ type: StudentsPageDto })
   async list(
     @Query() query: QueryStudentsDto,
     @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request,
   ) {
-    return this.studentsService.list(query, user.id);
+    return this.studentsService.list(query, user.id, getRequestId(request));
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Detalha aluno sincronizado do pedagógico' })
+  @ApiOperation({ summary: 'Detalha aluno do snapshot local do pedagogico' })
+  @ApiOkResponse({ type: StudentDetailDto })
   async findOne(
     @Param('id') id: string,
-    @Query('forceRefresh') forceRefresh: string | undefined,
     @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request,
   ) {
-    return this.studentsService.findOne(id, user.id, forceRefresh === 'true');
+    return this.studentsService.findOne(id, user.id, getRequestId(request));
   }
 }

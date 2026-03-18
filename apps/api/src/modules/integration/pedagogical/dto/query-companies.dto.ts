@@ -1,19 +1,16 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
+import { PageQueryDto } from '@/common/dto/page-query.dto';
 
-export class QueryCompaniesDto {
+function trimString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+export class QueryCompaniesDto extends PageQueryDto {
+  @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => trimString(value))
   @IsString()
   search?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => value === 'true' || value === true)
-  @IsBoolean()
-  forceRefresh?: boolean;
-
-  @IsOptional()
-  @Transform(({ value }) => Number(value))
-  @Min(1)
-  @Max(200)
-  take?: number = 50;
 }

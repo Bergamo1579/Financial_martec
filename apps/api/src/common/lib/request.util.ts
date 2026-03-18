@@ -1,15 +1,9 @@
 import type { Request } from 'express';
 
 export function getRequestIp(request: Request) {
-  const forwarded = request.headers['x-forwarded-for'];
+  return request.ip ?? request.socket.remoteAddress ?? null;
+}
 
-  if (Array.isArray(forwarded)) {
-    return forwarded[0] ?? request.ip;
-  }
-
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0]?.trim() ?? request.ip;
-  }
-
-  return request.ip;
+export function getRequestId(request: Request & { id?: unknown }) {
+  return request.id !== undefined && request.id !== null ? String(request.id) : null;
 }

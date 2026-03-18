@@ -5,6 +5,7 @@ const envSchema = z.object({
   APP_PORT: z.coerce.number().default(4000),
   APP_URL: z.string().url().default('http://localhost:4000'),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  TRUST_PROXY: z.string().optional(),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
   JWT_ACCESS_SECRET: z.string().min(16),
@@ -21,6 +22,9 @@ const envSchema = z.object({
   PEDAGOGICAL_API_KEY: z.string().optional(),
   PEDAGOGICAL_USERNAME: z.string().optional(),
   PEDAGOGICAL_PASSWORD: z.string().optional(),
+  PEDAGOGICAL_PAGINATION_MODE: z.enum(['auto', 'off', 'force']).default('auto'),
+  PEDAGOGICAL_PAGE_SIZE: z.coerce.number().int().positive().max(5_000).default(500),
+  PEDAGOGICAL_REQUEST_TIMEOUT_MS: z.coerce.number().default(30_000),
   INTERNAL_SYNC_SECRET: z.string().min(16),
 });
 

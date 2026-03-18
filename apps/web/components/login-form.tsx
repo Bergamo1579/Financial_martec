@@ -49,21 +49,19 @@ export function LoginForm() {
     <form onSubmit={handleSubmit}>
       <div className="field">
         <label htmlFor="email">E-mail</label>
-        <input id="email" name="email" type="email" placeholder="owner@financial-martec.local" required />
+        <input id="email" name="email" type="email" placeholder="seu@email.com" required autoComplete="email" />
       </div>
 
       <div className="field">
         <label htmlFor="password">Senha</label>
-        <input id="password" name="password" type="password" placeholder="Sua senha do backoffice" required />
+        <input id="password" name="password" type="password" placeholder="••••••••" required autoComplete="current-password" />
       </div>
 
       {error ? <p className="error-text">{error}</p> : null}
 
-      <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
-        <button className="primary-button" type="submit" disabled={loading}>
-          {loading ? 'Entrando...' : 'Entrar no backoffice'}
-        </button>
-      </div>
+      <button className="primary-button" type="submit" disabled={loading}>
+        {loading ? 'Entrando…' : 'Entrar'}
+      </button>
     </form>
   );
 }

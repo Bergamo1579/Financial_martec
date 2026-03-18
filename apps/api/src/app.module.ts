@@ -9,6 +9,7 @@ import { isProduction } from '@/common/config/env';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { AuditModule } from '@/modules/audit/audit.module';
 import { BillingCoreModule } from '@/modules/billing-core/billing-core.module';
+import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { PedagogicalIntegrationModule } from '@/modules/integration/pedagogical/pedagogical.module';
 import { IamModule } from '@/modules/iam/iam.module';
@@ -58,6 +59,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     AuthModule,
     AuditModule,
     BillingCoreModule,
+    DashboardModule,
     HealthModule,
     IamModule,
     PedagogicalIntegrationModule,

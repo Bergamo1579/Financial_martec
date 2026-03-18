@@ -1,0 +1,606 @@
+/* ═══════════════════════════════════════════════════════
+   Financial Martec — Docs
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Layout shell ── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 100vh;
+  height: 100%;
+  background: #0b1117;
+  color: #cbd5e1;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 0.85rem;
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  background: rgba(8, 14, 22, 0.98);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
+}
+
+.sidebarTop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-bottom: 1rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.brand {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.sidebarCaption {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* ── Nav ── */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  padding: 0.25rem 0;
+}
+
+.navGroup {
+  margin: 0.85rem 0 0.2rem;
+  padding: 0 0.5rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #475569;
+}
+
+.navGroup:first-child {
+  margin-top: 0.25rem;
+}
+
+.navLink {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+  font-size: 0.76rem;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.navLink:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.navLinkActive {
+  color: #93c5fd;
+  border-left-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* ── Sidebar bottom ── */
+
+.sidebarBottom {
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bottomLabel {
+  font-size: 0.56rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+}
+
+.bottomCode {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  word-break: break-all;
+}
+
+/* ── Main ── */
+
+.main {
+  padding: 1.5rem 2rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* ── Hero ── */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 2rem 1.75rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+    rgba(12, 18, 26, 0.96);
+  scroll-margin-top: 1rem;
+}
+
+.kicker {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #60a5fa;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: #f1f5f9;
+}
+
+.heroCopy {
+  margin: 0;
+  max-width: 54ch;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #94a3b8;
+}
+
+.heroActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.btnPrimary,
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  transition: all 0.18s ease;
+}
+
+.btnPrimary {
+  background: #3b82f6;
+  color: #fff;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+
+.btnPrimary:hover {
+  background: #2563eb;
+}
+
+.btnGhost {
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.btnGhost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.btnPrimary:active,
+.btnGhost:active {
+  transform: scale(0.98);
+}
+
+/* ── Metric cards ── */
+
+.metricsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+}
+
+.metricCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(12, 18, 26, 0.8);
+  transition: border-color 0.2s ease;
+}
+
+.metricCard:hover {
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.metricLabel {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.metricValue {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #93c5fd;
+}
+
+.metricDesc {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* ── Content cards ── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.5rem 1.35rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(12, 18, 26, 0.8);
+  scroll-margin-top: 1.5rem;
+}
+
+.cardHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #f1f5f9;
+}
+
+.cardSummary {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+/* ── Bullet list ── */
+
+.bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0 0 0 0.85rem;
+  list-style: none;
+}
+
+.bullets li {
+  position: relative;
+  padding-left: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+.bullets li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.52em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #3b82f6;
+  opacity: 0.55;
+}
+
+/* ── Endpoint rows ── */
+
+.endpointList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.endpointRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(148, 163, 184, 0.06);
+  transition: border-color 0.15s ease;
+}
+
+.endpointRow:hover {
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+.endpointMethod {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: 0.15rem 0.4rem;
+  border-radius: 5px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.methodPOST {
+  background: rgba(59, 130, 246, 0.14);
+  color: #93c5fd;
+}
+
+.endpointBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.endpointPath {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  word-break: break-all;
+}
+
+.endpointDetail {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+/* ── Link cards ── */
+
+.linkGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.linkCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.linkCard:hover {
+  border-color: rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.linkName {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #e2e8f0;
+}
+
+.linkHref {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.68rem;
+  color: #60a5fa;
+  word-break: break-all;
+}
+
+.linkDetail {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* ── Signal rows ── */
+
+.signalList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.signalRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.15s ease;
+}
+
+.signalRow:hover {
+  border-color: rgba(148, 163, 184, 0.15);
+}
+
+.signalNum {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #93c5fd;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.signalText {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+/* ── Footer ── */
+
+.pageFooter {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+  font-size: 0.65rem;
+  color: #475569;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border-right: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  }
+
+  .sidebarTop {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+  }
+
+  .sidebarCaption {
+    display: none;
+  }
+
+  .nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0;
+  }
+
+  .nav > div {
+    display: contents;
+  }
+
+  .navGroup {
+    display: none;
+  }
+
+  .navLink {
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.72rem;
+  }
+
+  .navLinkActive {
+    border-left-color: transparent;
+    border-bottom-color: #3b82f6;
+  }
+
+  .sidebarBottom {
+    display: none;
+  }
+
+  .main {
+    padding: 1rem;
+  }
+
+  .metricsRow,
+  .linkGrid,
+  .signalList {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+
+  .heroTitle {
+    font-size: 1.5rem;
+  }
+
+  .heroActions {
+    flex-direction: column;
+  }
+
+  .card {
+    padding: 1rem;
+    border-radius: 10px;
+  }
+
+  .endpointRow {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+}

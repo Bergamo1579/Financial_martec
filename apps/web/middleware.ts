@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/login'];
+const PUBLIC_PATHS = ['/login', '/docs'];
 
 export function middleware(request: NextRequest) {
   const accessToken = request.cookies.get('fm_access_token');
@@ -11,10 +11,6 @@ export function middleware(request: NextRequest) {
 
   if (!accessToken && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  if (accessToken && pathname === '/login') {
-    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return NextResponse.next();
