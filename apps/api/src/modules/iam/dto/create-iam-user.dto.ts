@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { AppRole, CreateIamUserRequest } from '@financial-martec/contracts';
+import type { CreateIamUserRequest } from '@financial-martec/contracts';
 import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -9,10 +9,10 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Matches,
   MinLength,
 } from 'class-validator';
 
-const appRoles: AppRole[] = ['owner', 'admin_financeiro', 'analista_financeiro', 'auditor'];
 const assignableStatuses = ['ACTIVE', 'INACTIVE'] as const;
 
 function trimString(value: unknown) {
@@ -41,12 +41,13 @@ export class CreateIamUserDto implements CreateIamUserRequest {
   @MinLength(8)
   password!: string;
 
-  @ApiProperty({ enum: appRoles, isArray: true })
+  @ApiProperty({ type: String, isArray: true })
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(4)
-  @IsIn(appRoles, { each: true })
-  roles!: AppRole[];
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @Matches(/^[a-z0-9._-]+$/i, { each: true })
+  roles!: string[];
 
   @ApiPropertyOptional({ enum: assignableStatuses })
   @IsOptional()

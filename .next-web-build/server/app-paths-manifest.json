@@ -1,0 +1,21 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/docs/openapi/route": "app/docs/openapi/route.js",
+  "/docs/reference/route": "app/docs/reference/route.js",
+  "/change-password/page": "app/change-password/page.js",
+  "/forbidden/page": "app/forbidden/page.js",
+  "/login/page": "app/login/page.js",
+  "/docs/page": "app/docs/page.js",
+  "/(protected)/empresas/page": "app/(protected)/empresas/page.js",
+  "/(protected)/alunos/page": "app/(protected)/alunos/page.js",
+  "/app/espaco-de-trabalho/page": "app/app/espaco-de-trabalho/page.js",
+  "/app/page": "app/app/page.js",
+  "/backoffice/alunos/page": "app/backoffice/alunos/page.js",
+  "/backoffice/permissoes/page": "app/backoffice/permissoes/page.js",
+  "/(protected)/page": "app/(protected)/page.js",
+  "/backoffice/roles/page": "app/backoffice/roles/page.js",
+  "/backoffice/page": "app/backoffice/page.js",
+  "/backoffice/usuarios/page": "app/backoffice/usuarios/page.js",
+  "/app/perfil/page": "app/app/perfil/page.js",
+  "/backoffice/empresas/page": "app/backoffice/empresas/page.js"
+}

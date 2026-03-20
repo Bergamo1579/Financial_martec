@@ -1,28 +1,37 @@
 import 'dotenv/config';
 import argon2 from 'argon2';
 import { PrismaClient } from '@prisma/client';
-import { permissions, rolePermissions, roles } from '@financial-martec/contracts';
+import {
+  permissions,
+  rolePermissions,
+  roles,
+} from '@financial-martec/contracts';
+import {
+  inactiveScreenKeys,
+  permissionDescriptions,
+  permissionScopes,
+  roleScopes,
+  screenDefinitions as screens,
+} from '../src/modules/iam/iam-catalog';
 
 const prisma = new PrismaClient();
-
-const permissionDescriptions: Record<(typeof permissions)[number], string> = {
-  'companies.read': 'Visualizar empresas sincronizadas do pedagogico',
-  'students.read': 'Visualizar alunos sincronizados do pedagogico',
-  'audit.read': 'Visualizar eventos de auditoria',
-  'sync.manage': 'Disparar sincronizacao manual do pedagogico',
-  'iam.users.read': 'Visualizar usuarios internos e seus perfis',
-  'iam.users.manage': 'Criar usuarios internos e atualizar status/perfis',
-  'iam.roles.read': 'Visualizar catalogo de perfis e permissoes',
-};
 
 async function main() {
   for (const permissionName of permissions) {
     await prisma.permission.upsert({
       where: { name: permissionName },
-      update: { description: permissionDescriptions[permissionName] },
+      update: {
+        description: permissionDescriptions[permissionName],
+        scope: permissionScopes[permissionName],
+        isSystem: true,
+        isActive: true,
+      },
       create: {
         name: permissionName,
         description: permissionDescriptions[permissionName],
+        scope: permissionScopes[permissionName],
+        isSystem: true,
+        isActive: true,
       },
     });
   }
@@ -32,10 +41,16 @@ async function main() {
       where: { name: roleName },
       update: {
         description: `Perfil padrao ${roleName} do Financial Martec`,
+        scope: roleScopes[roleName],
+        isSystem: true,
+        isActive: true,
       },
       create: {
         name: roleName,
         description: `Perfil padrao ${roleName} do Financial Martec`,
+        scope: roleScopes[roleName],
+        isSystem: true,
+        isActive: true,
       },
     });
 
@@ -60,6 +75,64 @@ async function main() {
     }
   }
 
+  for (const screenDefinition of screens) {
+    const screen = await prisma.appScreen.upsert({
+      where: { key: screenDefinition.key },
+      update: {
+        path: screenDefinition.path,
+        title: screenDefinition.title,
+        description: screenDefinition.description,
+        area: screenDefinition.area,
+        group: screenDefinition.group,
+        sortOrder: screenDefinition.sortOrder,
+        isActive: true,
+        isSystem: true,
+      },
+      create: {
+        key: screenDefinition.key,
+        path: screenDefinition.path,
+        title: screenDefinition.title,
+        description: screenDefinition.description,
+        area: screenDefinition.area,
+        group: screenDefinition.group,
+        sortOrder: screenDefinition.sortOrder,
+        isActive: true,
+        isSystem: true,
+      },
+    });
+
+    for (const permissionName of screenDefinition.permissions) {
+      const permission = await prisma.permission.findUniqueOrThrow({
+        where: { name: permissionName },
+      });
+
+      await prisma.permissionScreen.upsert({
+        where: {
+          permissionId_screenId: {
+            permissionId: permission.id,
+            screenId: screen.id,
+          },
+        },
+        update: {},
+        create: {
+          permissionId: permission.id,
+          screenId: screen.id,
+        },
+      });
+    }
+  }
+
+  await prisma.appScreen.updateMany({
+    where: {
+      key: {
+        in: inactiveScreenKeys,
+      },
+    },
+    data: {
+      isActive: false,
+    },
+  });
+
   const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL;
   const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
   const bootstrapName = process.env.ADMIN_BOOTSTRAP_NAME ?? 'Owner Financial Martec';
@@ -83,12 +156,18 @@ async function main() {
       name: bootstrapName,
       passwordHash,
       status: 'ACTIVE',
+      mustChangePassword: false,
+      lockedAt: null,
+      lockedUntil: null,
+      lockReason: null,
+      lockedByUserId: null,
     },
     create: {
       name: bootstrapName,
       email: bootstrapEmail,
       passwordHash,
       status: 'ACTIVE',
+      mustChangePassword: false,
     },
   });
 

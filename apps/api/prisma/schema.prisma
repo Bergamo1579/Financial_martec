@@ -13,6 +13,22 @@ enum UserStatus {
   LOCKED
 }
 
+enum AccessScope {
+  BACKOFFICE
+  APP
+  BOTH
+}
+
+enum AppArea {
+  BACKOFFICE
+  APP
+}
+
+enum UserLockReason {
+  FAILED_ATTEMPTS
+  ADMIN
+}
+
 enum SessionStatus {
   ACTIVE
   REVOKED
@@ -45,6 +61,34 @@ enum SnapshotBatchStatus {
   SUPERSEDED
 }
 
+enum CadastroStatus {
+  ARQUIVADO
+  ENVIADO
+  ACEITO
+  CONTRATO
+  MATRICULADO
+}
+
+enum StudyPeriod {
+  MANHA
+  TARDE
+  NOITE
+  INTEGRAL
+}
+
+enum IndicacaoStatus {
+  ENVIADA
+  ACEITA
+  RECUSADA
+  CONTRATO_GERADO
+  ENCERRADA_POR_OUTRA_EMPRESA
+}
+
+enum PlanoPagamentoStatus {
+  ATIVO
+  INATIVO
+}
+
 model User {
   id               String         @id @default(uuid())
   name             String
@@ -52,10 +96,17 @@ model User {
   username         String?        @unique
   passwordHash     String
   status           UserStatus     @default(ACTIVE)
+  lockedAt         DateTime?
+  lockedUntil      DateTime?
+  lockReason       UserLockReason?
+  lockedByUserId   String?
+  mustChangePassword Boolean      @default(false)
   mfaEnabled       Boolean        @default(false)
   lastLoginAt      DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  lockedByUser     User?          @relation("UserLockedBy", fields: [lockedByUserId], references: [id], onDelete: SetNull)
+  lockedUsers      User[]         @relation("UserLockedBy")
   roles            UserRole[]
   sessions         Session[]
   auditEvents      AuditEvent[]
@@ -68,6 +119,9 @@ model Role {
   id          String           @id @default(cuid())
   name        String           @unique
   description String?
+  scope       AccessScope      @default(BOTH)
+  isSystem    Boolean          @default(false)
+  isActive    Boolean          @default(true)
   permissions RolePermission[]
   users       UserRole[]
 }
@@ -76,7 +130,11 @@ model Permission {
   id          String           @id @default(cuid())
   name        String           @unique
   description String?
+  scope       AccessScope      @default(BOTH)
+  isSystem    Boolean          @default(false)
+  isActive    Boolean          @default(true)
   roles       RolePermission[]
+  screens     PermissionScreen[]
 }
 
 model RolePermission {
@@ -96,6 +154,31 @@ model UserRole {
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
+}
+
+model AppScreen {
+  id          String             @id @default(cuid())
+  key         String             @unique
+  path        String             @unique
+  title       String
+  description String?
+  area        AppArea
+  group       String
+  sortOrder   Int                @default(0)
+  isActive    Boolean            @default(true)
+  isSystem    Boolean            @default(true)
+  permissions PermissionScreen[]
+
+  @@index([area, group, sortOrder])
+}
+
+model PermissionScreen {
+  permissionId String
+  screenId     String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  screen       AppScreen  @relation(fields: [screenId], references: [id], onDelete: Cascade)
+
+  @@id([permissionId, screenId])
 }
 
 model Session {
@@ -148,6 +231,102 @@ model AuditEvent {
   @@index([resourceType, resourceId])
 }
 
+model Cadastro {
+  id                        String         @id @default(uuid())
+  nomeCompleto              String
+  telefone                  String
+  cpf                       String
+  cpfNormalized             String
+  nomeResponsavel           String
+  periodoEstudo             StudyPeriod
+  status                    CadastroStatus @default(ARQUIVADO)
+  pedagogicalStudentSourceId String?       @unique
+  deletedAt                 DateTime?
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+  indicacoes                Indicacao[]
+
+  @@index([cpfNormalized])
+  @@index([status, updatedAt])
+  @@index([deletedAt, updatedAt])
+}
+
+model Indicacao {
+  id                  String          @id @default(uuid())
+  cadastroId          String
+  empresaSourceId     String
+  status              IndicacaoStatus @default(ENVIADA)
+  sentAt              DateTime        @default(now())
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  contractGeneratedAt DateTime?
+  closedAt            DateTime?
+  closedReason        String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  cadastro            Cadastro        @relation(fields: [cadastroId], references: [id], onDelete: Cascade)
+
+  @@index([cadastroId, status])
+  @@index([empresaSourceId, status])
+  @@index([status, updatedAt])
+}
+
+model PlanoPagamento {
+  id              String               @id @default(uuid())
+  nome            String               @unique
+  valorTotal      Decimal              @db.Decimal(12, 2)
+  quantidadeMeses Int
+  diaVencimento   Int
+  status          PlanoPagamentoStatus @default(ATIVO)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([status, updatedAt])
+}
+
+model PedagogicalUnitSnapshot {
+  id            String                    @id @default(uuid())
+  batchId       String
+  sourceId      String
+  name          String
+  location      String?
+  payloadHash   String
+  sourceUpdatedAt DateTime?
+  lastSyncedAt  DateTime                  @default(now())
+  data          Json
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  batch         PedagogicalSnapshotBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  classes       PedagogicalClassSnapshot[]
+  students      PedagogicalStudentSnapshot[]
+
+  @@unique([batchId, sourceId])
+  @@index([batchId, name])
+}
+
+model PedagogicalClassSnapshot {
+  id            String                     @id @default(uuid())
+  batchId       String
+  sourceId      String
+  unitSourceId  String?
+  unitSnapshotId String?
+  name          String
+  description   String?
+  payloadHash   String
+  sourceUpdatedAt DateTime?
+  lastSyncedAt  DateTime                   @default(now())
+  data          Json
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  batch         PedagogicalSnapshotBatch   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  unitSnapshot  PedagogicalUnitSnapshot?   @relation(fields: [unitSnapshotId], references: [id], onDelete: SetNull)
+  students      PedagogicalStudentSnapshot[]
+
+  @@unique([batchId, sourceId])
+  @@index([batchId, unitSourceId])
+  @@index([batchId, name])
+}
+
 model PedagogicalCompanySnapshot {
   id              String   @id @default(uuid())
   batchId         String
@@ -176,7 +355,11 @@ model PedagogicalStudentSnapshot {
   batchId           String
   sourceId          String
   companySourceId   String
+  classSourceId     String?
+  unitSourceId      String?
   companySnapshotId String?
+  classSnapshotId   String?
+  unitSnapshotId    String?
   name              String
   cpf               String
   email             String?
@@ -189,9 +372,13 @@ model PedagogicalStudentSnapshot {
   updatedAt         DateTime                    @updatedAt
   batch             PedagogicalSnapshotBatch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
   companySnapshot   PedagogicalCompanySnapshot? @relation(fields: [companySnapshotId], references: [id], onDelete: SetNull)
+  classSnapshot     PedagogicalClassSnapshot?   @relation(fields: [classSnapshotId], references: [id], onDelete: SetNull)
+  unitSnapshot      PedagogicalUnitSnapshot?    @relation(fields: [unitSnapshotId], references: [id], onDelete: SetNull)
 
   @@unique([batchId, sourceId])
   @@index([batchId, companySourceId])
+  @@index([batchId, classSourceId])
+  @@index([batchId, unitSourceId])
   @@index([batchId, name])
   @@index([batchId, cpf])
 }
@@ -206,6 +393,8 @@ model PedagogicalSnapshotBatch {
   createdAt   DateTime                    @default(now())
   updatedAt   DateTime                    @updatedAt
   syncRun     PedagogicalSyncRun?         @relation(fields: [syncRunId], references: [id], onDelete: SetNull)
+  units       PedagogicalUnitSnapshot[]
+  classes     PedagogicalClassSnapshot[]
   companies   PedagogicalCompanySnapshot[]
   students    PedagogicalStudentSnapshot[]
 

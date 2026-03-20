@@ -1,7 +1,9 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import type {
+  PedagogicalClass,
   PedagogicalCompany,
   PedagogicalStudent,
+  PedagogicalUnit,
 } from '@financial-martec/contracts';
 import { env } from '@/common/config/env';
 import { ExternalDependencyException } from '@/common/exceptions/external-dependency.exception';
@@ -24,6 +26,8 @@ type PaginatedCollectionEnvelope<T> = {
   nextPage: number | null;
 };
 
+type RawRecord = Record<string, unknown>;
+
 @Injectable()
 export class PedagogicalClientService {
   private readonly logger = new Logger(PedagogicalClientService.name);
@@ -35,7 +39,7 @@ export class PedagogicalClientService {
   }
 
   async getCompany(id: string): Promise<PedagogicalCompany> {
-    return this.request<PedagogicalCompany>(`/empresas/${id}`);
+    return this.normalizeCompany(await this.request<unknown>(`/empresas/${id}`));
   }
 
   async listStudents(): Promise<PedagogicalStudent[]> {
@@ -43,15 +47,59 @@ export class PedagogicalClientService {
   }
 
   async getStudent(id: string): Promise<PedagogicalStudent> {
-    return this.request<PedagogicalStudent>(`/alunos/${id}`);
+    return this.normalizeStudent(await this.request<unknown>(`/alunos/${id}`));
   }
 
-  streamCompanies() {
-    return this.iterateCollection<PedagogicalCompany>('/empresas');
+  async listClasses(): Promise<PedagogicalClass[]> {
+    return this.collectCollection(this.streamClasses());
   }
 
-  streamStudents() {
-    return this.iterateCollection<PedagogicalStudent>('/alunos');
+  async getClass(id: string): Promise<PedagogicalClass> {
+    return this.normalizeClass(await this.request<unknown>(`/turmas/${id}`));
+  }
+
+  async listUnits(): Promise<PedagogicalUnit[]> {
+    return this.collectCollection(this.streamUnits());
+  }
+
+  async getUnit(id: string): Promise<PedagogicalUnit> {
+    return this.normalizeUnit(await this.request<unknown>(`/unidades/${id}`));
+  }
+
+  async *streamCompanies(): AsyncGenerator<PedagogicalCollectionPage<PedagogicalCompany>> {
+    for await (const page of this.iterateCollection<unknown>('/empresas')) {
+      yield {
+        items: page.items.map((item) => this.normalizeCompany(item)),
+        fetchDurationMs: page.fetchDurationMs,
+      };
+    }
+  }
+
+  async *streamStudents(): AsyncGenerator<PedagogicalCollectionPage<PedagogicalStudent>> {
+    for await (const page of this.iterateCollection<unknown>('/alunos')) {
+      yield {
+        items: page.items.map((item) => this.normalizeStudent(item)),
+        fetchDurationMs: page.fetchDurationMs,
+      };
+    }
+  }
+
+  async *streamClasses(): AsyncGenerator<PedagogicalCollectionPage<PedagogicalClass>> {
+    for await (const page of this.iterateCollection<unknown>('/turmas')) {
+      yield {
+        items: page.items.map((item) => this.normalizeClass(item)),
+        fetchDurationMs: page.fetchDurationMs,
+      };
+    }
+  }
+
+  async *streamUnits(): AsyncGenerator<PedagogicalCollectionPage<PedagogicalUnit>> {
+    for await (const page of this.iterateCollection<unknown>('/unidades')) {
+      yield {
+        items: page.items.map((item) => this.normalizeUnit(item)),
+        fetchDurationMs: page.fetchDurationMs,
+      };
+    }
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -380,5 +428,150 @@ export class PedagogicalClientService {
       `Falha ao consultar o sistema pedagogico (${path}).`,
       details,
     );
+  }
+
+  private normalizeCompany(payload: unknown): PedagogicalCompany {
+    const record = this.assertRecord(payload, 'empresa');
+
+    return {
+      id: this.readRequiredString(record, ['id', 'empresa_id'], 'empresa.id'),
+      nome: this.readRequiredString(record, ['nome', 'empresa_nome'], 'empresa.nome'),
+      criado_em: this.readOptionalString(record, ['criado_em', 'empresa_criado_em']) ?? undefined,
+      razao_social:
+        this.readOptionalString(record, ['razao_social', 'empresa_razao_social']) ?? undefined,
+      cnpj: this.readOptionalString(record, ['cnpj', 'empresa_cnpj']) ?? undefined,
+      inscricao_estadual: this.readOptionalString(record, [
+        'inscricao_estadual',
+        'empresa_inscricao_estadual',
+      ]),
+      endereco: this.readOptionalString(record, ['endereco', 'empresa_endereco']),
+      numero: this.readOptionalString(record, ['numero', 'empresa_numero']),
+      cidade: this.readOptionalString(record, ['cidade', 'empresa_cidade']),
+      bairro: this.readOptionalString(record, ['bairro', 'empresa_bairro']),
+      estado: this.readOptionalString(record, ['estado', 'empresa_estado']),
+      cep: this.readOptionalString(record, ['cep', 'empresa_cep']),
+      telefone: this.readOptionalString(record, ['telefone', 'empresa_telefone']),
+      email: this.readOptionalString(record, ['email', 'empresa_email']),
+      representante_nome: this.readOptionalString(record, [
+        'representante_nome',
+        'empresa_representante_nome',
+      ]),
+      representante_cargo: this.readOptionalString(record, [
+        'representante_cargo',
+        'empresa_representante_cargo',
+      ]),
+      username: this.readOptionalString(record, ['username', 'user_username']),
+    };
+  }
+
+  private normalizeStudent(payload: unknown): PedagogicalStudent {
+    const record = this.assertRecord(payload, 'aluno');
+
+    return {
+      id: this.readRequiredString(record, ['id', 'aluno_id'], 'aluno.id'),
+      nome: this.readRequiredString(record, ['nome', 'aluno_nome'], 'aluno.nome'),
+      cpf: this.readRequiredString(record, ['cpf', 'aluno_cpf'], 'aluno.cpf'),
+      data_nascimento: this.readRequiredString(
+        record,
+        ['data_nascimento', 'aluno_data_nascimento'],
+        'aluno.data_nascimento',
+      ),
+      unidade_id: this.readOptionalString(record, ['unidade_id', 'aluno_unidade_id']),
+      turma_id: this.readOptionalString(record, ['turma_id', 'aluno_turma_id']),
+      empresa_id: this.readRequiredString(
+        record,
+        ['empresa_id', 'aluno_empresa_id'],
+        'aluno.empresa_id',
+      ),
+      criado_em: this.readOptionalString(record, ['criado_em', 'aluno_criado_em']) ?? undefined,
+      atualizado_em:
+        this.readOptionalString(record, ['atualizado_em', 'aluno_atualizado_em']) ?? undefined,
+      responsavel_nome: this.readOptionalString(record, [
+        'responsavel_nome',
+        'aluno_responsavel_nome',
+      ]),
+      sexo: this.readOptionalString(record, ['sexo', 'aluno_sexo']) as 'M' | 'F' | null,
+      rg: this.readOptionalString(record, ['rg', 'aluno_rg']),
+      endereco: this.readOptionalString(record, ['endereco', 'aluno_endereco']),
+      numero: this.readOptionalString(record, ['numero', 'aluno_numero']),
+      complemento: this.readOptionalString(record, ['complemento', 'aluno_complemento']),
+      bairro: this.readOptionalString(record, ['bairro', 'aluno_bairro']),
+      cidade: this.readOptionalString(record, ['cidade', 'aluno_cidade']),
+      cep: this.readOptionalString(record, ['cep', 'aluno_cep']),
+      celular: this.readOptionalString(record, ['celular', 'aluno_celular']),
+      celular_recado: this.readOptionalString(record, [
+        'celular_recado',
+        'aluno_celular_recado',
+      ]),
+      email: this.readOptionalString(record, ['email', 'aluno_email']),
+      escola: this.readOptionalString(record, ['escola', 'aluno_escola']),
+      serie: this.readOptionalString(record, ['serie', 'aluno_serie']),
+      periodo: this.readOptionalString(record, ['periodo', 'aluno_periodo']) as
+        | 'manha'
+        | 'tarde'
+        | 'noite'
+        | null,
+    };
+  }
+
+  private normalizeClass(payload: unknown): PedagogicalClass {
+    const record = this.assertRecord(payload, 'turma');
+
+    return {
+      id: this.readRequiredString(record, ['id'], 'turma.id'),
+      nome: this.readRequiredString(record, ['nome'], 'turma.nome'),
+      descricao: this.readOptionalString(record, ['descricao']),
+      criado_em: this.readOptionalString(record, ['criado_em']) ?? undefined,
+      id_unidade: this.readOptionalString(record, ['id_unidade']),
+    };
+  }
+
+  private normalizeUnit(payload: unknown): PedagogicalUnit {
+    const record = this.assertRecord(payload, 'unidade');
+
+    return {
+      id: this.readRequiredString(record, ['id'], 'unidade.id'),
+      nome: this.readRequiredString(record, ['nome'], 'unidade.nome'),
+      localizacao: this.readOptionalString(record, ['localizacao']),
+    };
+  }
+
+  private assertRecord(payload: unknown, entityName: string): RawRecord {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new ExternalDependencyException(
+        `Payload invalido recebido do sistema pedagogico para ${entityName}.`,
+        {
+          entityName,
+        },
+      );
+    }
+
+    return payload as RawRecord;
+  }
+
+  private readRequiredString(record: RawRecord, keys: string[], fieldName: string) {
+    const value = this.readOptionalString(record, keys);
+    if (!value) {
+      throw new ExternalDependencyException(
+        `Campo obrigatorio ausente no payload do sistema pedagogico: ${fieldName}.`,
+        {
+          fieldName,
+        },
+      );
+    }
+
+    return value;
+  }
+
+  private readOptionalString(record: RawRecord, keys: string[]) {
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed ? trimmed : null;
+      }
+    }
+
+    return null;
   }
 }

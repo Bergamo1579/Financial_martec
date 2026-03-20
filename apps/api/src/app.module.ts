@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { PrismaModule } from '@/common/prisma/prisma.module';
 import { RedisModule } from '@/common/redis/redis.module';
 import { isProduction } from '@/common/config/env';
+import { AppAreaModule } from '@/modules/app-area/app-area.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { AuditModule } from '@/modules/audit/audit.module';
 import { BillingCoreModule } from '@/modules/billing-core/billing-core.module';
@@ -56,6 +57,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
     ]),
     PrismaModule,
     RedisModule,
+    AppAreaModule,
     AuthModule,
     AuditModule,
     BillingCoreModule,

@@ -1,35 +1,111 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type {
-  AppPermission,
-  AppRole,
+  AppScreenItem,
   IamPermissionItem,
   IamRoleItem,
   IamUserDetail,
   IamUserListItem,
   PaginatedResponse,
+  PermissionDetail,
+  RoleDetail,
   UserStatus,
 } from '@financial-martec/contracts';
+import { appAreas, permissionScopes, roleScopes, userLockReasons } from '@financial-martec/contracts';
 
-const appRoles: AppRole[] = ['owner', 'admin_financeiro', 'analista_financeiro', 'auditor'];
 const userStatuses: UserStatus[] = ['ACTIVE', 'INACTIVE', 'LOCKED'];
+
+export class AppScreenItemDto implements AppScreenItem {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  key!: string;
+
+  @ApiProperty()
+  path!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ nullable: true })
+  description!: string | null;
+
+  @ApiProperty({ enum: appAreas })
+  area!: (typeof appAreas)[number];
+
+  @ApiProperty()
+  group!: string;
+
+  @ApiProperty()
+  sortOrder!: number;
+
+  @ApiProperty()
+  isActive!: boolean;
+
+  @ApiProperty()
+  isSystem!: boolean;
+
+  @ApiProperty({ type: String, isArray: true })
+  permissionNames!: string[];
+}
 
 export class IamPermissionItemDto implements IamPermissionItem {
   @ApiProperty()
-  name!: AppPermission;
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
 
   @ApiProperty({ nullable: true })
   description!: string | null;
+
+  @ApiProperty({ enum: permissionScopes })
+  scope!: (typeof permissionScopes)[number];
+
+  @ApiProperty()
+  isSystem!: boolean;
+
+  @ApiProperty()
+  isActive!: boolean;
+
+  @ApiProperty({ type: String, isArray: true })
+  screens!: string[];
+}
+
+export class PermissionDetailDto
+  extends IamPermissionItemDto
+  implements PermissionDetail
+{
+  @ApiProperty({ type: AppScreenItemDto, isArray: true })
+  screenItems!: AppScreenItemDto[];
 }
 
 export class IamRoleItemDto implements IamRoleItem {
-  @ApiProperty({ enum: appRoles })
-  name!: AppRole;
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
 
   @ApiProperty({ nullable: true })
   description!: string | null;
 
+  @ApiProperty({ enum: roleScopes })
+  scope!: (typeof roleScopes)[number];
+
+  @ApiProperty()
+  isSystem!: boolean;
+
+  @ApiProperty()
+  isActive!: boolean;
+
   @ApiProperty({ type: String, isArray: true })
-  permissions!: AppPermission[];
+  permissions!: string[];
+}
+
+export class RoleDetailDto extends IamRoleItemDto implements RoleDetail {
+  @ApiProperty({ type: String, isArray: true })
+  screens!: string[];
 }
 
 export class IamUserListItemDto implements IamUserListItem {
@@ -46,7 +122,22 @@ export class IamUserListItemDto implements IamUserListItem {
   status!: UserStatus;
 
   @ApiProperty({ type: String, isArray: true })
-  roles!: AppRole[];
+  roles!: string[];
+
+  @ApiProperty({ enum: appAreas, isArray: true })
+  areas!: (typeof appAreas)[number][];
+
+  @ApiProperty()
+  mustChangePassword!: boolean;
+
+  @ApiProperty({ enum: userLockReasons, nullable: true })
+  lockReason!: (typeof userLockReasons)[number] | null;
+
+  @ApiProperty({ nullable: true })
+  lockedAt!: string | null;
+
+  @ApiProperty({ nullable: true })
+  lockedUntil!: string | null;
 
   @ApiProperty()
   createdAt!: string;
@@ -60,7 +151,7 @@ export class IamUserListItemDto implements IamUserListItem {
 
 export class IamUserDetailDto extends IamUserListItemDto implements IamUserDetail {
   @ApiProperty({ type: String, isArray: true })
-  permissions!: AppPermission[];
+  permissions!: string[];
 }
 
 export class IamUsersPageDto implements PaginatedResponse<IamUserListItemDto> {

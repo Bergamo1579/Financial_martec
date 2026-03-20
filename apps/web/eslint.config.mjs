@@ -5,7 +5,12 @@ import { baseIgnores } from '../../packages/config/eslint/base.js';
 
 export default tseslint.config(
   {
-    ignores: [...baseIgnores],
+    ignores: [
+      ...baseIgnores,
+      '.next-app/**',
+      'next-build-artifacts/**',
+      '.next-web-build/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

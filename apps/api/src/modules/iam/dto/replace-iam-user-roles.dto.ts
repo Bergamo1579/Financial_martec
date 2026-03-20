@@ -1,14 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { AppRole, ReplaceIamUserRolesRequest } from '@financial-martec/contracts';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn } from 'class-validator';
-
-const appRoles: AppRole[] = ['owner', 'admin_financeiro', 'analista_financeiro', 'auditor'];
+import type { ReplaceIamUserRolesRequest } from '@financial-martec/contracts';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsString,
+  Matches,
+} from 'class-validator';
 
 export class ReplaceIamUserRolesDto implements ReplaceIamUserRolesRequest {
-  @ApiProperty({ enum: appRoles, isArray: true })
+  @ApiProperty({ type: String, isArray: true })
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(4)
-  @IsIn(appRoles, { each: true })
-  roles!: AppRole[];
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @Matches(/^[a-z0-9._-]+$/i, { each: true })
+  roles!: string[];
 }

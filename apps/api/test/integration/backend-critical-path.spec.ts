@@ -12,9 +12,11 @@ import type {
   IamUserDetail,
   IamUserListItem,
   PaginatedResponse,
+  PedagogicalClass,
   PedagogicalCompany,
   PedagogicalSyncJobPayload,
   PedagogicalStudent,
+  PedagogicalUnit,
   SessionItem,
   SyncIssueStateItem,
   SyncOverview,
@@ -73,6 +75,24 @@ function buildStudent(sourceId = 'student-1', companySourceId = 'company-1'): Pe
     criado_em: '2026-03-18T08:05:00.000Z',
     atualizado_em: '2026-03-18T08:10:00.000Z',
     email: 'aluno1@pedagogico.test',
+  };
+}
+
+function buildClass(sourceId = 'class-1', unitSourceId = 'unit-1'): PedagogicalClass {
+  return {
+    id: sourceId,
+    nome: 'Turma 1',
+    descricao: 'Turma piloto',
+    criado_em: '2026-03-18T07:00:00.000Z',
+    id_unidade: unitSourceId,
+  };
+}
+
+function buildUnit(sourceId = 'unit-1'): PedagogicalUnit {
+  return {
+    id: sourceId,
+    nome: 'Unidade 1',
+    localizacao: 'Centro',
   };
 }
 
@@ -712,9 +732,14 @@ async function resetDatabase(prisma: PrismaService) {
   await prisma.pedagogicalIssueState.deleteMany();
   await prisma.pedagogicalSyncIssue.deleteMany();
   await prisma.pedagogicalStudentSnapshot.deleteMany();
+  await prisma.pedagogicalClassSnapshot.deleteMany();
+  await prisma.pedagogicalUnitSnapshot.deleteMany();
   await prisma.pedagogicalCompanySnapshot.deleteMany();
   await prisma.pedagogicalSnapshotBatch.deleteMany();
   await prisma.pedagogicalSyncRun.deleteMany();
+  await prisma.indicacao.deleteMany();
+  await prisma.cadastro.deleteMany();
+  await prisma.planoPagamento.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.loginAttempt.deleteMany();
   await prisma.session.deleteMany();
@@ -766,9 +791,15 @@ function setPedagogicalApiMock(
     companiesStatus?: number;
     companiesBody?: unknown;
     companiesPages?: unknown[][];
+    classesStatus?: number;
+    classesBody?: unknown;
+    classesPages?: unknown[][];
     studentsStatus?: number;
     studentsBody?: unknown;
     studentsPages?: unknown[][];
+    unitsStatus?: number;
+    unitsBody?: unknown;
+    unitsPages?: unknown[][];
   },
 ) {
   fetchMock.mockImplementation((input) => {
@@ -800,6 +831,44 @@ function setPedagogicalApiMock(
       }
 
       return Promise.resolve(jsonResponse(options.companiesStatus ?? 200, options.companiesBody ?? []));
+    }
+
+    if (parsedUrl.pathname.endsWith('/unidades')) {
+      if (options.unitsPages) {
+        const page = Number(parsedUrl.searchParams.get('page') ?? '1');
+        const totalPages = options.unitsPages.length;
+        const items = options.unitsPages[page - 1] ?? [];
+        return Promise.resolve(
+          jsonResponse(options.unitsStatus ?? 200, {
+            items,
+            page,
+            totalPages,
+            nextPage: page < totalPages ? page + 1 : null,
+          }),
+        );
+      }
+
+      return Promise.resolve(jsonResponse(options.unitsStatus ?? 200, options.unitsBody ?? [buildUnit()]));
+    }
+
+    if (parsedUrl.pathname.endsWith('/turmas')) {
+      if (options.classesPages) {
+        const page = Number(parsedUrl.searchParams.get('page') ?? '1');
+        const totalPages = options.classesPages.length;
+        const items = options.classesPages[page - 1] ?? [];
+        return Promise.resolve(
+          jsonResponse(options.classesStatus ?? 200, {
+            items,
+            page,
+            totalPages,
+            nextPage: page < totalPages ? page + 1 : null,
+          }),
+        );
+      }
+
+      return Promise.resolve(
+        jsonResponse(options.classesStatus ?? 200, options.classesBody ?? [buildClass()]),
+      );
     }
 
     if (parsedUrl.pathname.endsWith('/alunos')) {

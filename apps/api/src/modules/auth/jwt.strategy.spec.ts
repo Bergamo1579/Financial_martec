@@ -1,5 +1,11 @@
 import { JwtStrategy } from './jwt.strategy';
 
+const expectedNavigation = {
+  items: [],
+  areas: ['BACKOFFICE'] as const,
+  defaultPath: '/backoffice',
+};
+
 describe('JwtStrategy', () => {
   it('returns false when the session is not active', async () => {
     const strategy = new JwtStrategy({
@@ -21,6 +27,8 @@ describe('JwtStrategy', () => {
         sessionId: 'session-1',
         roles: ['owner'],
         permissions: ['companies.read'],
+        areas: ['BACKOFFICE'],
+        mustChangePassword: false,
       }),
     ).resolves.toBe(false);
   });
@@ -35,23 +43,40 @@ describe('JwtStrategy', () => {
           expiresAt: new Date(Date.now() + 60_000),
           user: {
             id: 'user-1',
+            name: 'Owner',
             email: 'owner@financial.test',
             status: 'ACTIVE',
+            mfaEnabled: false,
+            lockReason: null,
+            lockedUntil: null,
             roles: [
               {
                 role: {
                   name: 'owner',
+                  isActive: true,
+                  scope: 'BACKOFFICE',
                   permissions: [
                     {
-                      permission: { name: 'companies.read' },
+                      permission: {
+                        name: 'companies.read',
+                        isActive: true,
+                        scope: 'BACKOFFICE',
+                        screens: [],
+                      },
                     },
                     {
-                      permission: { name: 'audit.read' },
+                      permission: {
+                        name: 'audit.read',
+                        isActive: true,
+                        scope: 'BACKOFFICE',
+                        screens: [],
+                      },
                     },
                   ],
                 },
               },
             ],
+            mustChangePassword: false,
           },
         }),
       },
@@ -70,13 +95,24 @@ describe('JwtStrategy', () => {
         sessionId: 'session-1',
         roles: ['owner'],
         permissions: ['companies.read'],
+        areas: ['BACKOFFICE'],
+        mustChangePassword: false,
       }),
     ).resolves.toEqual({
       id: 'user-1',
+      name: 'Owner',
       email: 'owner@financial.test',
       sessionId: 'session-1',
+      status: 'ACTIVE',
+      mfaEnabled: false,
       roles: ['owner'],
       permissions: ['companies.read', 'audit.read'],
+      areas: ['BACKOFFICE'],
+      mustChangePassword: false,
+      defaultPath: '/backoffice',
+      lockReason: null,
+      lockedUntil: null,
+      navigation: expectedNavigation,
     });
     expect(redisGet).toHaveBeenCalledWith('session:session-1');
     expect(redisSet).toHaveBeenCalled();
@@ -94,10 +130,18 @@ describe('JwtStrategy', () => {
           JSON.stringify({
             sessionId: 'session-1',
             userId: 'user-1',
+            name: 'Owner',
             email: 'owner@financial.test',
             status: 'ACTIVE',
+            mfaEnabled: false,
             roles: ['owner'],
             permissions: ['companies.read'],
+            areas: ['BACKOFFICE'],
+            mustChangePassword: false,
+            defaultPath: '/backoffice',
+            lockReason: null,
+            lockedUntil: null,
+            navigation: expectedNavigation,
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
           }),
         ),
@@ -113,13 +157,24 @@ describe('JwtStrategy', () => {
         sessionId: 'session-1',
         roles: ['owner'],
         permissions: ['companies.read'],
+        areas: ['BACKOFFICE'],
+        mustChangePassword: false,
       }),
     ).resolves.toEqual({
       id: 'user-1',
+      name: 'Owner',
       email: 'owner@financial.test',
       sessionId: 'session-1',
+      status: 'ACTIVE',
+      mfaEnabled: false,
       roles: ['owner'],
       permissions: ['companies.read'],
+      areas: ['BACKOFFICE'],
+      mustChangePassword: false,
+      defaultPath: '/backoffice',
+      lockReason: null,
+      lockedUntil: null,
+      navigation: expectedNavigation,
     });
     expect(findFirst).not.toHaveBeenCalled();
   });

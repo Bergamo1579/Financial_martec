@@ -1,16 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import type {
-  AppPermission,
-  AppRole,
-  AuthenticatedUser,
-} from '@financial-martec/contracts';
 import type { Request } from 'express';
 import { env } from '@/common/config/env';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { RedisService } from '@/common/redis/redis.service';
-import type { JwtPayload } from './auth.types';
+import type { AuthenticatedUser, JwtPayload } from './auth.types';
 import {
   buildSessionCacheKey,
   type CachedSessionAuthContext,
@@ -61,7 +56,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
                   include: {
                     permissions: {
                       include: {
-                        permission: true,
+                        permission: {
+                          include: {
+                            screens: {
+                              include: {
+                                screen: true,
+                              },
+                            },
+                          },
+                        },
                       },
                     },
                   },
@@ -77,29 +80,152 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return false;
     }
 
+    const roles = session.user.roles
+      .filter((userRole) => userRole.role.isActive)
+      .map((userRole) => userRole.role.name);
+    const permissions = [
+      ...new Set(
+        session.user.roles
+          .filter((userRole) => userRole.role.isActive)
+          .flatMap((userRole) =>
+            userRole.role.permissions
+              .filter((rolePermission) => rolePermission.permission.isActive)
+              .map((rolePermission) => rolePermission.permission.name),
+          ),
+      ),
+    ];
+    const permissionSet = new Set(permissions);
+    const areas = [
+      ...new Set(
+        session.user.roles.flatMap((userRole) => {
+          if (!userRole.role.isActive) {
+            return [];
+          }
+
+          const resolvedAreas = new Set<'BACKOFFICE' | 'APP'>();
+          if (userRole.role.scope === 'BACKOFFICE' || userRole.role.scope === 'BOTH') {
+            resolvedAreas.add('BACKOFFICE');
+          }
+          if (userRole.role.scope === 'APP' || userRole.role.scope === 'BOTH') {
+            resolvedAreas.add('APP');
+          }
+
+          for (const rolePermission of userRole.role.permissions) {
+            if (!rolePermission.permission.isActive) {
+              continue;
+            }
+            if (
+              rolePermission.permission.scope === 'BACKOFFICE' ||
+              rolePermission.permission.scope === 'BOTH'
+            ) {
+              resolvedAreas.add('BACKOFFICE');
+            }
+            if (
+              rolePermission.permission.scope === 'APP' ||
+              rolePermission.permission.scope === 'BOTH'
+            ) {
+              resolvedAreas.add('APP');
+            }
+            for (const permissionScreen of rolePermission.permission.screens ?? []) {
+              if (permissionScreen.screen.isActive) {
+                resolvedAreas.add(permissionScreen.screen.area as 'BACKOFFICE' | 'APP');
+              }
+            }
+          }
+
+          return [...resolvedAreas];
+        }),
+      ),
+    ];
+
+    const navigationMap = new Map<string, AuthenticatedUser['navigation']['items'][number]>();
+    for (const userRole of session.user.roles) {
+      if (!userRole.role.isActive) {
+        continue;
+      }
+
+      for (const rolePermission of userRole.role.permissions) {
+        if (!rolePermission.permission.isActive || !permissionSet.has(rolePermission.permission.name)) {
+          continue;
+        }
+
+        for (const permissionScreen of rolePermission.permission.screens ?? []) {
+          const screen = permissionScreen.screen;
+          if (!screen.isActive) {
+            continue;
+          }
+
+          const existing = navigationMap.get(screen.key);
+          if (existing) {
+            if (!existing.permissions.includes(rolePermission.permission.name)) {
+              existing.permissions.push(rolePermission.permission.name);
+            }
+            continue;
+          }
+
+          navigationMap.set(screen.key, {
+            key: screen.key,
+            title: screen.title,
+            path: screen.path,
+            group: screen.group,
+            area: screen.area as 'BACKOFFICE' | 'APP',
+            permissions: [rolePermission.permission.name],
+          });
+        }
+      }
+    }
+
+    const navigationItems = [...navigationMap.values()].sort((left, right) => {
+      return (
+        left.area.localeCompare(right.area) ||
+        left.group.localeCompare(right.group) ||
+        left.title.localeCompare(right.title)
+      );
+    });
+    const defaultPath = session.user.mustChangePassword
+      ? '/change-password'
+      : areas.includes('BACKOFFICE')
+        ? '/backoffice'
+        : areas.includes('APP')
+          ? '/app'
+          : '/forbidden';
+
     const authenticatedUser = {
       id: session.user.id,
+      name: session.user.name,
       email: session.user.email,
       sessionId: session.id,
-      roles: session.user.roles.map((userRole) => userRole.role.name as AppRole),
-      permissions: [
-        ...new Set(
-          session.user.roles.flatMap((userRole) =>
-            userRole.role.permissions.map(
-              (rolePermission) => rolePermission.permission.name as AppPermission,
-            ),
-          ),
-        ),
-      ],
+      status: session.user.status,
+      mfaEnabled: session.user.mfaEnabled,
+      roles,
+      permissions,
+      areas,
+      mustChangePassword: session.user.mustChangePassword,
+      defaultPath,
+      lockReason: session.user.lockReason,
+      lockedUntil: session.user.lockedUntil?.toISOString() ?? null,
+      navigation: {
+        items: navigationItems,
+        areas,
+        defaultPath,
+      },
     } satisfies AuthenticatedUser;
 
     await this.writeCachedSession({
       sessionId: session.id,
       userId: session.user.id,
+      name: session.user.name,
       email: session.user.email,
       status: session.user.status,
+      mfaEnabled: session.user.mfaEnabled,
       roles: authenticatedUser.roles,
       permissions: authenticatedUser.permissions,
+      areas: authenticatedUser.areas,
+      mustChangePassword: authenticatedUser.mustChangePassword,
+      defaultPath: authenticatedUser.defaultPath,
+      lockReason: authenticatedUser.lockReason,
+      lockedUntil: authenticatedUser.lockedUntil,
+      navigation: authenticatedUser.navigation,
       expiresAt: session.expiresAt.toISOString(),
     });
 

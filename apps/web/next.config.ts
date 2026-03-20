@@ -1,9 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  experimental: {
-    typedRoutes: true,
-  },
+  distDir: 'next-build-artifacts',
   eslint: {
     ignoreDuringBuilds: true,
   },

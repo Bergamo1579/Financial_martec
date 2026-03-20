@@ -108,7 +108,7 @@ export class AuditService {
             email: event.actorUser.email,
           }
         : null,
-      action: event.action as AuditEventItem['action'],
+      action: event.action,
       resourceType: event.resourceType,
       resourceId: event.resourceId ?? null,
       ipAddress: event.ipAddress ?? null,

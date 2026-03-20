@@ -16,6 +16,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { getRequestId } from '@/common/lib/request.util';
@@ -24,12 +25,16 @@ import type { AuthenticatedUser } from './auth.types';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import {
+  AuthBootstrapDto,
   AuthPayloadDto,
+  NavigationResponseDto,
   AuthUserDto,
   MessageResponseDto,
   SessionItemDto,
 } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
+
+const SKIP_AUTH_THROTTLE = { default: true, auth: true } as const;
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -38,7 +43,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Autentica usuario interno do backoffice' })
+  @ApiOperation({ summary: 'Autentica usuarios do backoffice e da aplicacao' })
   @ApiOkResponse({
     description: 'Sessao autenticada com cookies httpOnly',
     type: AuthPayloadDto,
@@ -67,6 +72,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
   @HttpCode(200)
   @ApiOperation({ summary: 'Rotaciona refresh token e emite novo access token' })
   @ApiOkResponse({ type: AuthPayloadDto })
@@ -93,6 +99,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   @ApiCookieAuth('fm_access_token')
@@ -112,15 +119,37 @@ export class AuthController {
   }
 
   @Get('me')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @ApiCookieAuth('fm_access_token')
   @ApiOperation({ summary: 'Retorna o usuario autenticado' })
   @ApiOkResponse({ type: AuthUserDto })
-  async me(@CurrentUser() user: AuthenticatedUser) {
+  me(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getMe(user);
   }
 
+  @Get('bootstrap')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
+  @UseGuards(JwtAuthGuard)
+  @ApiCookieAuth('fm_access_token')
+  @ApiOperation({ summary: 'Retorna o bootstrap autenticado para carregar a UI protegida' })
+  @ApiOkResponse({ type: AuthBootstrapDto })
+  bootstrap(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getBootstrap(user);
+  }
+
+  @Get('navigation')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
+  @UseGuards(JwtAuthGuard)
+  @ApiCookieAuth('fm_access_token')
+  @ApiOperation({ summary: 'Retorna a navegacao efetiva do usuario autenticado' })
+  @ApiOkResponse({ type: NavigationResponseDto })
+  navigation(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getNavigation(user);
+  }
+
   @Get('sessions')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @ApiCookieAuth('fm_access_token')
   @ApiOperation({ summary: 'Lista as sessoes do usuario autenticado' })
@@ -130,6 +159,7 @@ export class AuthController {
   }
 
   @Delete('sessions/:sessionId')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @ApiCookieAuth('fm_access_token')
   @ApiOperation({ summary: 'Revoga uma sessao especifica do usuario autenticado' })
@@ -157,6 +187,7 @@ export class AuthController {
   }
 
   @Post('change-password')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   @ApiCookieAuth('fm_access_token')
@@ -168,6 +199,21 @@ export class AuthController {
     @Req() request: Request,
   ) {
     return this.authService.changePassword(user, dto, request);
+  }
+
+  @Post('change-temporary-password')
+  @SkipThrottle(SKIP_AUTH_THROTTLE)
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @ApiCookieAuth('fm_access_token')
+  @ApiOperation({ summary: 'Troca a senha temporaria obrigatoria do usuario autenticado' })
+  @ApiOkResponse({ type: MessageResponseDto })
+  async changeTemporaryPassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+    @Req() request: Request,
+  ) {
+    return this.authService.changeTemporaryPassword(user, dto, request);
   }
 
   private clearAuthCookies(response: Response) {

@@ -44,3 +44,17 @@ export interface PedagogicalStudent {
   serie?: string | null;
   periodo?: 'manha' | 'tarde' | 'noite' | null;
 }
+
+export interface PedagogicalClass {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  criado_em?: string;
+  id_unidade?: string | null;
+}
+
+export interface PedagogicalUnit {
+  id: string;
+  nome: string;
+  localizacao?: string | null;
+}

@@ -1,8 +1,10 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { Prisma, type SyncIssueSeverity } from '@prisma/client';
 import type {
+  PedagogicalClass,
   PedagogicalCompany,
   PedagogicalStudent,
+  PedagogicalUnit,
 } from '@financial-martec/contracts';
 import { PEDAGOGICAL_SYNC_LEASE_KEY } from '@financial-martec/contracts';
 import { randomUUID } from 'crypto';
@@ -40,13 +42,30 @@ type HeartbeatState = {
 };
 
 type SyncMetrics = {
+  unitsFetched: number;
+  classesFetched: number;
   companiesFetched: number;
   studentsFetched: number;
+  unitsUpserted: number;
+  classesUpserted: number;
   companiesUpserted: number;
   studentsUpserted: number;
   issues: number;
   openIssues: number;
   durationsMs: Record<string, number>;
+};
+
+type UnitPageNormalization = {
+  unitsBySourceId: Map<string, PedagogicalUnit>;
+  existingSourceIds: Set<string>;
+  issues: IssueDraft[];
+};
+
+type ClassPageNormalization = {
+  classesBySourceId: Map<string, PedagogicalClass>;
+  existingSourceIds: Set<string>;
+  unitSourceIds: Set<string>;
+  issues: IssueDraft[];
 };
 
 type CompanyPageNormalization = {
@@ -59,6 +78,8 @@ type StudentPageNormalization = {
   studentsBySourceId: Map<string, PedagogicalStudent>;
   existingSourceIds: Set<string>;
   companySourceIds: Set<string>;
+  classSourceIds: Set<string>;
+  unitSourceIds: Set<string>;
   issues: IssueDraft[];
 };
 
@@ -256,8 +277,12 @@ export class PedagogicalProjectionService {
     const syncStartedAt = Date.now();
     const syncTimestamp = new Date();
     const metrics: SyncMetrics = {
+      unitsFetched: 0,
+      classesFetched: 0,
       companiesFetched: 0,
       studentsFetched: 0,
+      unitsUpserted: 0,
+      classesUpserted: 0,
       companiesUpserted: 0,
       studentsUpserted: 0,
       issues: 0,
@@ -307,6 +332,28 @@ export class PedagogicalProjectionService {
 
       const issues: IssueDraft[] = [];
 
+      const unitSync = await this.syncUnitsSnapshot(
+        run.id,
+        snapshotBatch.id,
+        syncTimestamp,
+        leaseToken,
+        heartbeatState,
+        metrics,
+      );
+      metrics.issues += unitSync.issues.length;
+      issues.push(...unitSync.issues);
+
+      const classSync = await this.syncClassesSnapshot(
+        run.id,
+        snapshotBatch.id,
+        syncTimestamp,
+        leaseToken,
+        heartbeatState,
+        metrics,
+      );
+      metrics.issues += classSync.issues.length;
+      issues.push(...classSync.issues);
+
       const companySync = await this.syncCompaniesSnapshot(
         run.id,
         snapshotBatch.id,
@@ -332,6 +379,8 @@ export class PedagogicalProjectionService {
       const reconcileStartedAt = Date.now();
       const missingRemoteIssues = await this.collectMissingRemoteIssues(
         previousCurrentBatch?.id ?? null,
+        unitSync.sourceIds,
+        classSync.sourceIds,
         companySync.sourceIds,
         studentSync.sourceIds,
       );
@@ -429,6 +478,118 @@ export class PedagogicalProjectionService {
     };
   }
 
+  private async syncUnitsSnapshot(
+    runId: string,
+    batchId: string,
+    syncTimestamp: Date,
+    leaseToken: string,
+    heartbeatState: HeartbeatState,
+    metrics: SyncMetrics,
+  ): Promise<CollectionSyncResult> {
+    const sourceIds = new Set<string>();
+    const seenSourceIds = new Set<string>();
+    const issues: IssueDraft[] = [];
+
+    await this.assertLeaseAlive(runId, leaseToken, heartbeatState);
+
+    for await (const page of this.client.streamUnits()) {
+      metrics.unitsFetched += page.items.length;
+      metrics.durationsMs.fetchUnits =
+        (metrics.durationsMs.fetchUnits ?? 0) + page.fetchDurationMs;
+
+      const normalizeStartedAt = Date.now();
+      const normalized = this.normalizeUnitsPage(page.items, seenSourceIds);
+      metrics.durationsMs.normalizeUnits =
+        (metrics.durationsMs.normalizeUnits ?? 0) + (Date.now() - normalizeStartedAt);
+
+      issues.push(...normalized.issues);
+
+      if (!normalized.unitsBySourceId.size) {
+        await this.assertLeaseAlive(runId, leaseToken, heartbeatState);
+        continue;
+      }
+
+      const upsertStartedAt = Date.now();
+      await this.upsertUnitsPage(batchId, normalized, syncTimestamp);
+      metrics.durationsMs.upsertUnits =
+        (metrics.durationsMs.upsertUnits ?? 0) + (Date.now() - upsertStartedAt);
+
+      for (const sourceId of normalized.unitsBySourceId.keys()) {
+        sourceIds.add(sourceId);
+      }
+      metrics.unitsUpserted = sourceIds.size;
+
+      await this.assertLeaseAlive(runId, leaseToken, heartbeatState);
+    }
+
+    return {
+      sourceIds,
+      issues,
+    };
+  }
+
+  private async syncClassesSnapshot(
+    runId: string,
+    batchId: string,
+    syncTimestamp: Date,
+    leaseToken: string,
+    heartbeatState: HeartbeatState,
+    metrics: SyncMetrics,
+  ): Promise<CollectionSyncResult> {
+    const sourceIds = new Set<string>();
+    const seenSourceIds = new Set<string>();
+    const issues: IssueDraft[] = [];
+
+    await this.assertLeaseAlive(runId, leaseToken, heartbeatState);
+
+    for await (const page of this.client.streamClasses()) {
+      metrics.classesFetched += page.items.length;
+      metrics.durationsMs.fetchClasses =
+        (metrics.durationsMs.fetchClasses ?? 0) + page.fetchDurationMs;
+
+      const normalizeStartedAt = Date.now();
+      const normalized = this.normalizeClassesPage(page.items, seenSourceIds);
+      metrics.durationsMs.normalizeClasses =
+        (metrics.durationsMs.normalizeClasses ?? 0) + (Date.now() - normalizeStartedAt);
+
+      issues.push(...normalized.issues);
+
+      if (!normalized.classesBySourceId.size) {
+        await this.assertLeaseAlive(runId, leaseToken, heartbeatState);
+        continue;
+      }
+
+      const loadUnitMapStartedAt = Date.now();
+      const unitSnapshotMap = await this.loadUnitSnapshotMap(batchId, normalized.unitSourceIds);
+      metrics.durationsMs.loadClassUnitMap =
+        (metrics.durationsMs.loadClassUnitMap ?? 0) + (Date.now() - loadUnitMapStartedAt);
+
+      const upsertStartedAt = Date.now();
+      const upsertResult = await this.upsertClassesPage(
+        batchId,
+        normalized,
+        unitSnapshotMap,
+        syncTimestamp,
+      );
+      metrics.durationsMs.upsertClasses =
+        (metrics.durationsMs.upsertClasses ?? 0) + (Date.now() - upsertStartedAt);
+
+      issues.push(...upsertResult.issues);
+
+      for (const sourceId of normalized.classesBySourceId.keys()) {
+        sourceIds.add(sourceId);
+      }
+      metrics.classesUpserted = sourceIds.size;
+
+      await this.assertLeaseAlive(runId, leaseToken, heartbeatState);
+    }
+
+    return {
+      sourceIds,
+      issues,
+    };
+  }
+
   private async syncStudentsSnapshot(
     runId: string,
     batchId: string,
@@ -460,20 +621,23 @@ export class PedagogicalProjectionService {
         continue;
       }
 
-      const loadCompanyMapStartedAt = Date.now();
-      const companySnapshotMap = await this.loadCompanySnapshotMap(
-        batchId,
-        normalized.companySourceIds,
-      );
-      metrics.durationsMs.loadStudentCompanyMap =
-        (metrics.durationsMs.loadStudentCompanyMap ?? 0) +
-        (Date.now() - loadCompanyMapStartedAt);
+      const loadReferenceMapsStartedAt = Date.now();
+      const [companySnapshotMap, classSnapshotMap, unitSnapshotMap] = await Promise.all([
+        this.loadCompanySnapshotMap(batchId, normalized.companySourceIds),
+        this.loadClassSnapshotMap(batchId, normalized.classSourceIds),
+        this.loadUnitSnapshotMap(batchId, normalized.unitSourceIds),
+      ]);
+      metrics.durationsMs.loadStudentReferenceMaps =
+        (metrics.durationsMs.loadStudentReferenceMaps ?? 0) +
+        (Date.now() - loadReferenceMapsStartedAt);
 
       const upsertStartedAt = Date.now();
       const upsertResult = await this.upsertStudentsPage(
         batchId,
         normalized,
         companySnapshotMap,
+        classSnapshotMap,
+        unitSnapshotMap,
         syncTimestamp,
       );
       metrics.durationsMs.upsertStudents =
@@ -533,6 +697,90 @@ export class PedagogicalProjectionService {
     };
   }
 
+  private normalizeUnitsPage(
+    units: PedagogicalUnit[],
+    seenSourceIds: Set<string>,
+  ): UnitPageNormalization {
+    const unitsBySourceId = new Map<string, PedagogicalUnit>();
+    const duplicateIds = new Set<string>();
+    const existingSourceIds = new Set<string>();
+
+    for (const unit of units) {
+      if (seenSourceIds.has(unit.id)) {
+        duplicateIds.add(unit.id);
+        existingSourceIds.add(unit.id);
+      }
+
+      if (unitsBySourceId.has(unit.id)) {
+        duplicateIds.add(unit.id);
+      }
+
+      unitsBySourceId.set(unit.id, unit);
+    }
+
+    for (const sourceId of unitsBySourceId.keys()) {
+      seenSourceIds.add(sourceId);
+    }
+
+    return {
+      unitsBySourceId,
+      existingSourceIds,
+      issues: [...duplicateIds].map<IssueDraft>((sourceId) => ({
+        entityType: 'unit',
+        entitySourceId: sourceId,
+        severity: 'WARNING',
+        code: 'duplicate_remote_record',
+        message: 'Unidade duplicada retornada pela API pedagogica; ultimo payload prevaleceu.',
+      })),
+    };
+  }
+
+  private normalizeClassesPage(
+    classes: PedagogicalClass[],
+    seenSourceIds: Set<string>,
+  ): ClassPageNormalization {
+    const classesBySourceId = new Map<string, PedagogicalClass>();
+    const duplicateIds = new Set<string>();
+    const existingSourceIds = new Set<string>();
+
+    for (const classroom of classes) {
+      if (seenSourceIds.has(classroom.id)) {
+        duplicateIds.add(classroom.id);
+        existingSourceIds.add(classroom.id);
+      }
+
+      if (classesBySourceId.has(classroom.id)) {
+        duplicateIds.add(classroom.id);
+      }
+
+      classesBySourceId.set(classroom.id, classroom);
+    }
+
+    for (const sourceId of classesBySourceId.keys()) {
+      seenSourceIds.add(sourceId);
+    }
+
+    const unitSourceIds = new Set<string>();
+    for (const classroom of classesBySourceId.values()) {
+      if (classroom.id_unidade) {
+        unitSourceIds.add(classroom.id_unidade);
+      }
+    }
+
+    return {
+      classesBySourceId,
+      existingSourceIds,
+      unitSourceIds,
+      issues: [...duplicateIds].map<IssueDraft>((sourceId) => ({
+        entityType: 'class',
+        entitySourceId: sourceId,
+        severity: 'WARNING',
+        code: 'duplicate_remote_record',
+        message: 'Turma duplicada retornada pela API pedagogica; ultimo payload prevaleceu.',
+      })),
+    };
+  }
+
   private normalizeStudentsPage(
     students: PedagogicalStudent[],
     seenSourceIds: Set<string>,
@@ -559,14 +807,24 @@ export class PedagogicalProjectionService {
     }
 
     const companySourceIds = new Set<string>();
+    const classSourceIds = new Set<string>();
+    const unitSourceIds = new Set<string>();
     for (const student of studentsBySourceId.values()) {
       companySourceIds.add(student.empresa_id);
+      if (student.turma_id) {
+        classSourceIds.add(student.turma_id);
+      }
+      if (student.unidade_id) {
+        unitSourceIds.add(student.unidade_id);
+      }
     }
 
     return {
       studentsBySourceId,
       existingSourceIds,
       companySourceIds,
+      classSourceIds,
+      unitSourceIds,
       issues: [...duplicateIds].map<IssueDraft>((sourceId) => ({
         entityType: 'student',
         entitySourceId: sourceId,
@@ -603,10 +861,83 @@ export class PedagogicalProjectionService {
     }
   }
 
+  private async upsertUnitsPage(
+    batchId: string,
+    normalization: UnitPageNormalization,
+    syncTimestamp: Date,
+  ) {
+    const unitsToInsert = new Map<string, PedagogicalUnit>();
+    const unitsToUpdate = new Map<string, PedagogicalUnit>();
+
+    for (const [sourceId, unit] of normalization.unitsBySourceId.entries()) {
+      if (normalization.existingSourceIds.has(sourceId)) {
+        unitsToUpdate.set(sourceId, unit);
+        continue;
+      }
+
+      unitsToInsert.set(sourceId, unit);
+    }
+
+    if (unitsToInsert.size) {
+      await this.insertUnits(batchId, unitsToInsert, syncTimestamp);
+    }
+
+    if (unitsToUpdate.size) {
+      await this.updateUnits(batchId, unitsToUpdate, syncTimestamp);
+    }
+  }
+
+  private async upsertClassesPage(
+    batchId: string,
+    normalization: ClassPageNormalization,
+    unitSnapshotMap: Map<string, string>,
+    syncTimestamp: Date,
+  ) {
+    const classesToInsert = new Map<string, PedagogicalClass>();
+    const classesToUpdate = new Map<string, PedagogicalClass>();
+
+    for (const [sourceId, classroom] of normalization.classesBySourceId.entries()) {
+      if (normalization.existingSourceIds.has(sourceId)) {
+        classesToUpdate.set(sourceId, classroom);
+        continue;
+      }
+
+      classesToInsert.set(sourceId, classroom);
+    }
+
+    const issues: IssueDraft[] = [];
+
+    if (classesToInsert.size) {
+      const insertResult = await this.insertClasses(
+        batchId,
+        classesToInsert,
+        unitSnapshotMap,
+        syncTimestamp,
+      );
+      issues.push(...insertResult.issues);
+    }
+
+    if (classesToUpdate.size) {
+      const updateResult = await this.updateClasses(
+        batchId,
+        classesToUpdate,
+        unitSnapshotMap,
+        syncTimestamp,
+      );
+      issues.push(...updateResult.issues);
+    }
+
+    return {
+      issues: this.deduplicateIssues(issues),
+    };
+  }
+
   private async upsertStudentsPage(
     batchId: string,
     normalization: StudentPageNormalization,
     companySnapshotMap: Map<string, string>,
+    classSnapshotMap: Map<string, string>,
+    unitSnapshotMap: Map<string, string>,
     syncTimestamp: Date,
   ) {
     const studentsToInsert = new Map<string, PedagogicalStudent>();
@@ -628,6 +959,8 @@ export class PedagogicalProjectionService {
         batchId,
         studentsToInsert,
         companySnapshotMap,
+        classSnapshotMap,
+        unitSnapshotMap,
         syncTimestamp,
       );
       issues.push(...insertResult.issues);
@@ -638,6 +971,8 @@ export class PedagogicalProjectionService {
         batchId,
         studentsToUpdate,
         companySnapshotMap,
+        classSnapshotMap,
+        unitSnapshotMap,
         syncTimestamp,
       );
       issues.push(...updateResult.issues);
@@ -712,10 +1047,183 @@ export class PedagogicalProjectionService {
     }
   }
 
+  private async insertUnits(
+    batchId: string,
+    unitsBySourceId: Map<string, PedagogicalUnit>,
+    syncTimestamp: Date,
+  ) {
+    await runChunkedWithConcurrency(
+      unitsBySourceId.values(),
+      SNAPSHOT_WRITE_CHUNK_SIZE,
+      SNAPSHOT_WRITE_CONCURRENCY,
+      async (chunk) => {
+        await this.prisma.pedagogicalUnitSnapshot.createMany({
+          data: chunk.map((unit) => ({
+            batchId,
+            sourceId: unit.id,
+            name: unit.nome,
+            location: unit.localizacao ?? null,
+            payloadHash: sha256(stableJson(unit)),
+            sourceUpdatedAt: null,
+            lastSyncedAt: syncTimestamp,
+            data: unit as unknown as Prisma.InputJsonValue,
+          })),
+        });
+      },
+    );
+  }
+
+  private async updateUnits(
+    batchId: string,
+    unitsBySourceId: Map<string, PedagogicalUnit>,
+    syncTimestamp: Date,
+  ) {
+    const updates = [...unitsBySourceId.values()];
+    const chunks = chunkArray(updates, SNAPSHOT_WRITE_CHUNK_SIZE);
+
+    for (const chunk of chunks) {
+      await this.prisma.$transaction(
+        chunk.map((unit) =>
+          this.prisma.pedagogicalUnitSnapshot.update({
+            where: {
+              batchId_sourceId: {
+                batchId,
+                sourceId: unit.id,
+              },
+            },
+            data: {
+              name: unit.nome,
+              location: unit.localizacao ?? null,
+              payloadHash: sha256(stableJson(unit)),
+              sourceUpdatedAt: null,
+              lastSyncedAt: syncTimestamp,
+              data: unit as unknown as Prisma.InputJsonValue,
+            },
+          }),
+        ),
+      );
+    }
+  }
+
+  private async insertClasses(
+    batchId: string,
+    classesBySourceId: Map<string, PedagogicalClass>,
+    unitSnapshotMap: Map<string, string>,
+    syncTimestamp: Date,
+  ) {
+    const issues: IssueDraft[] = [];
+
+    await runChunkedWithConcurrency(
+      classesBySourceId.values(),
+      SNAPSHOT_WRITE_CHUNK_SIZE,
+      SNAPSHOT_WRITE_CONCURRENCY,
+      async (chunk) => {
+        await this.prisma.pedagogicalClassSnapshot.createMany({
+          data: chunk.map((classroom) => {
+            const unitSnapshotId = classroom.id_unidade
+              ? (unitSnapshotMap.get(classroom.id_unidade) ?? null)
+              : null;
+
+            if (classroom.id_unidade && !unitSnapshotId) {
+              issues.push({
+                entityType: 'class',
+                entitySourceId: classroom.id,
+                severity: 'WARNING',
+                code: 'unit_reference_missing',
+                message:
+                  'Turma retornada pela API pedagogica referencia uma unidade ausente no snapshot atual.',
+                metadata: {
+                  unitSourceId: classroom.id_unidade,
+                },
+              });
+            }
+
+            return {
+              batchId,
+              sourceId: classroom.id,
+              unitSourceId: classroom.id_unidade ?? null,
+              unitSnapshotId,
+              name: classroom.nome,
+              description: classroom.descricao ?? null,
+              payloadHash: sha256(stableJson(classroom)),
+              sourceUpdatedAt: parseDate(classroom.criado_em),
+              lastSyncedAt: syncTimestamp,
+              data: classroom as unknown as Prisma.InputJsonValue,
+            };
+          }),
+        });
+      },
+    );
+
+    return {
+      issues: this.deduplicateIssues(issues),
+    };
+  }
+
+  private async updateClasses(
+    batchId: string,
+    classesBySourceId: Map<string, PedagogicalClass>,
+    unitSnapshotMap: Map<string, string>,
+    syncTimestamp: Date,
+  ) {
+    const issues: IssueDraft[] = [];
+    const updates = [...classesBySourceId.values()];
+    const chunks = chunkArray(updates, SNAPSHOT_WRITE_CHUNK_SIZE);
+
+    for (const chunk of chunks) {
+      await this.prisma.$transaction(
+        chunk.map((classroom) => {
+          const unitSnapshotId = classroom.id_unidade
+            ? (unitSnapshotMap.get(classroom.id_unidade) ?? null)
+            : null;
+
+          if (classroom.id_unidade && !unitSnapshotId) {
+            issues.push({
+              entityType: 'class',
+              entitySourceId: classroom.id,
+              severity: 'WARNING',
+              code: 'unit_reference_missing',
+              message:
+                'Turma retornada pela API pedagogica referencia uma unidade ausente no snapshot atual.',
+              metadata: {
+                unitSourceId: classroom.id_unidade,
+              },
+            });
+          }
+
+          return this.prisma.pedagogicalClassSnapshot.update({
+            where: {
+              batchId_sourceId: {
+                batchId,
+                sourceId: classroom.id,
+              },
+            },
+            data: {
+              unitSourceId: classroom.id_unidade ?? null,
+              unitSnapshotId,
+              name: classroom.nome,
+              description: classroom.descricao ?? null,
+              payloadHash: sha256(stableJson(classroom)),
+              sourceUpdatedAt: parseDate(classroom.criado_em),
+              lastSyncedAt: syncTimestamp,
+              data: classroom as unknown as Prisma.InputJsonValue,
+            },
+          });
+        }),
+      );
+    }
+
+    return {
+      issues: this.deduplicateIssues(issues),
+    };
+  }
+
   private async insertStudents(
     batchId: string,
     studentsBySourceId: Map<string, PedagogicalStudent>,
     companySnapshotMap: Map<string, string>,
+    classSnapshotMap: Map<string, string>,
+    unitSnapshotMap: Map<string, string>,
     syncTimestamp: Date,
   ) {
     const issues: IssueDraft[] = [];
@@ -745,7 +1253,11 @@ export class PedagogicalProjectionService {
               batchId,
               sourceId: student.id,
               companySourceId: student.empresa_id,
+              classSourceId: student.turma_id ?? null,
+              unitSourceId: student.unidade_id ?? null,
               companySnapshotId,
+              classSnapshotId: this.resolveClassSnapshotId(student, classSnapshotMap, issues),
+              unitSnapshotId: this.resolveUnitSnapshotId(student, unitSnapshotMap, issues),
               name: student.nome,
               cpf: student.cpf,
               email: student.email ?? null,
@@ -769,6 +1281,8 @@ export class PedagogicalProjectionService {
     batchId: string,
     studentsBySourceId: Map<string, PedagogicalStudent>,
     companySnapshotMap: Map<string, string>,
+    classSnapshotMap: Map<string, string>,
+    unitSnapshotMap: Map<string, string>,
     syncTimestamp: Date,
   ) {
     const issues: IssueDraft[] = [];
@@ -802,7 +1316,11 @@ export class PedagogicalProjectionService {
             },
             data: {
               companySourceId: student.empresa_id,
+              classSourceId: student.turma_id ?? null,
+              unitSourceId: student.unidade_id ?? null,
               companySnapshotId,
+              classSnapshotId: this.resolveClassSnapshotId(student, classSnapshotMap, issues),
+              unitSnapshotId: this.resolveUnitSnapshotId(student, unitSnapshotMap, issues),
               name: student.nome,
               cpf: student.cpf,
               email: student.email ?? null,
@@ -853,8 +1371,125 @@ export class PedagogicalProjectionService {
     return new Map(entries.map((company) => [company.sourceId, company.id]));
   }
 
+  private async loadClassSnapshotMap(
+    batchId: string,
+    classSourceIds: Set<string>,
+  ) {
+    if (!classSourceIds.size) {
+      return new Map<string, string>();
+    }
+
+    const sourceIds = [...classSourceIds];
+    const chunks = chunkArray(sourceIds, SNAPSHOT_LOOKUP_CHUNK_SIZE);
+    const entries: Array<{ sourceId: string; id: string }> = [];
+
+    for (const chunk of chunks) {
+      const classes = await this.prisma.pedagogicalClassSnapshot.findMany({
+        where: {
+          batchId,
+          sourceId: {
+            in: chunk,
+          },
+        },
+        select: {
+          id: true,
+          sourceId: true,
+        },
+      });
+      entries.push(...classes);
+    }
+
+    return new Map(entries.map((classroom) => [classroom.sourceId, classroom.id]));
+  }
+
+  private async loadUnitSnapshotMap(
+    batchId: string,
+    unitSourceIds: Set<string>,
+  ) {
+    if (!unitSourceIds.size) {
+      return new Map<string, string>();
+    }
+
+    const sourceIds = [...unitSourceIds];
+    const chunks = chunkArray(sourceIds, SNAPSHOT_LOOKUP_CHUNK_SIZE);
+    const entries: Array<{ sourceId: string; id: string }> = [];
+
+    for (const chunk of chunks) {
+      const units = await this.prisma.pedagogicalUnitSnapshot.findMany({
+        where: {
+          batchId,
+          sourceId: {
+            in: chunk,
+          },
+        },
+        select: {
+          id: true,
+          sourceId: true,
+        },
+      });
+      entries.push(...units);
+    }
+
+    return new Map(entries.map((unit) => [unit.sourceId, unit.id]));
+  }
+
+  private resolveClassSnapshotId(
+    student: PedagogicalStudent,
+    classSnapshotMap: Map<string, string>,
+    issues: IssueDraft[],
+  ) {
+    if (!student.turma_id) {
+      return null;
+    }
+
+    const classSnapshotId = classSnapshotMap.get(student.turma_id) ?? null;
+    if (!classSnapshotId) {
+      issues.push({
+        entityType: 'student',
+        entitySourceId: student.id,
+        severity: 'WARNING',
+        code: 'class_reference_missing',
+        message: 'Aluno retornado pela API pedagogica referencia uma turma ausente no snapshot atual.',
+        metadata: {
+          classSourceId: student.turma_id,
+        },
+      });
+    }
+
+    return classSnapshotId;
+  }
+
+  private resolveUnitSnapshotId(
+    student: PedagogicalStudent,
+    unitSnapshotMap: Map<string, string>,
+    issues: IssueDraft[],
+  ) {
+    if (!student.unidade_id) {
+      return null;
+    }
+
+    const unitSnapshotId = unitSnapshotMap.get(student.unidade_id) ?? null;
+    if (!unitSnapshotId) {
+      issues.push({
+        entityType: 'student',
+        entitySourceId: student.id,
+        severity: 'WARNING',
+        code: 'unit_reference_missing',
+        message:
+          'Aluno retornado pela API pedagogica referencia uma unidade ausente no snapshot atual.',
+        metadata: {
+          unitSourceId: student.unidade_id,
+        },
+      });
+    }
+
+    return unitSnapshotId;
+  }
+
   private async collectMissingRemoteIssues(
     previousCurrentBatchId: string | null,
+    remoteUnitIds: Set<string>,
+    remoteClassIds: Set<string>,
     remoteCompanyIds: Set<string>,
     remoteStudentIds: Set<string>,
   ) {
@@ -862,7 +1497,17 @@ export class PedagogicalProjectionService {
       return [] as IssueDraft[];
     }
 
-    const [companyIssues, studentIssues] = await Promise.all([
+    const [unitIssues, classIssues, companyIssues, studentIssues] = await Promise.all([
+      this.collectMissingIssuesForEntity(
+        'unit',
+        previousCurrentBatchId,
+        remoteUnitIds,
+      ),
+      this.collectMissingIssuesForEntity(
+        'class',
+        previousCurrentBatchId,
+        remoteClassIds,
+      ),
       this.collectMissingIssuesForEntity(
         'company',
         previousCurrentBatchId,
@@ -875,11 +1520,11 @@ export class PedagogicalProjectionService {
       ),
     ]);
 
-    return [...companyIssues, ...studentIssues];
+    return [...unitIssues, ...classIssues, ...companyIssues, ...studentIssues];
   }
 
   private async collectMissingIssuesForEntity(
-    entityType: 'company' | 'student',
+    entityType: 'unit' | 'class' | 'company' | 'student',
     batchId: string,
     remoteIds: Set<string>,
   ) {
@@ -888,7 +1533,51 @@ export class PedagogicalProjectionService {
 
     while (true) {
       const records =
-        entityType === 'company'
+        entityType === 'unit'
+          ? await this.prisma.pedagogicalUnitSnapshot.findMany({
+              where: {
+                batchId,
+              },
+              select: {
+                id: true,
+                sourceId: true,
+              },
+              orderBy: {
+                id: 'asc',
+              },
+              take: SNAPSHOT_LOOKUP_CHUNK_SIZE,
+              ...(cursorId
+                ? {
+                    cursor: {
+                      id: cursorId,
+                    },
+                    skip: 1,
+                  }
+                : {}),
+            })
+          : entityType === 'class'
+            ? await this.prisma.pedagogicalClassSnapshot.findMany({
+                where: {
+                  batchId,
+                },
+                select: {
+                  id: true,
+                  sourceId: true,
+                },
+                orderBy: {
+                  id: 'asc',
+                },
+                take: SNAPSHOT_LOOKUP_CHUNK_SIZE,
+                ...(cursorId
+                  ? {
+                      cursor: {
+                        id: cursorId,
+                      },
+                      skip: 1,
+                    }
+                  : {}),
+              })
+            : entityType === 'company'
           ? await this.prisma.pedagogicalCompanySnapshot.findMany({
               where: {
                 batchId,
@@ -970,7 +1659,11 @@ export class PedagogicalProjectionService {
         severity: 'WARNING',
         code: 'missing_in_remote',
         message:
-          entityType === 'company'
+          entityType === 'unit'
+            ? 'Unidade existe em snapshot anterior, mas nao retornou na API pedagogica.'
+            : entityType === 'class'
+              ? 'Turma existe em snapshot anterior, mas nao retornou na API pedagogica.'
+              : entityType === 'company'
             ? 'Empresa existe em snapshot anterior, mas nao retornou na API pedagogica.'
             : 'Aluno existe em snapshot anterior, mas nao retornou na API pedagogica.',
       }));
@@ -1025,8 +1718,12 @@ export class PedagogicalProjectionService {
           leaseToken: null,
           summary: {
             snapshotBatchId,
+            unitsFetched: metrics.unitsFetched,
+            classesFetched: metrics.classesFetched,
             companiesFetched: metrics.companiesFetched,
             studentsFetched: metrics.studentsFetched,
+            unitsUpserted: metrics.unitsUpserted,
+            classesUpserted: metrics.classesUpserted,
             companiesUpserted: metrics.companiesUpserted,
             studentsUpserted: metrics.studentsUpserted,
             issues: deduplicatedIssues.length,
@@ -1076,8 +1773,12 @@ export class PedagogicalProjectionService {
           leaseToken: null,
           summary: {
             ...failure,
+            unitsFetched: metrics.unitsFetched,
+            classesFetched: metrics.classesFetched,
             companiesFetched: metrics.companiesFetched,
             studentsFetched: metrics.studentsFetched,
+            unitsUpserted: metrics.unitsUpserted,
+            classesUpserted: metrics.classesUpserted,
             companiesUpserted: metrics.companiesUpserted,
             studentsUpserted: metrics.studentsUpserted,
             durationsMs: {
@@ -1290,6 +1991,20 @@ export class PedagogicalProjectionService {
 
     for (const chunk of batchIdChunks) {
       await this.prisma.pedagogicalStudentSnapshot.deleteMany({
+        where: {
+          batchId: {
+            in: chunk,
+          },
+        },
+      });
+      await this.prisma.pedagogicalClassSnapshot.deleteMany({
+        where: {
+          batchId: {
+            in: chunk,
+          },
+        },
+      });
+      await this.prisma.pedagogicalUnitSnapshot.deleteMany({
         where: {
           batchId: {
             in: chunk,

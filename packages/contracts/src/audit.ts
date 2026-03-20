@@ -1,21 +1,6 @@
 export type AuditActorType = 'user' | 'system';
 
-export type AuditAction =
-  | 'auth.login.success'
-  | 'auth.login.failed'
-  | 'auth.refresh'
-  | 'auth.logout'
-  | 'auth.password.changed'
-  | 'auth.session.revoked'
-  | 'iam.user.created'
-  | 'iam.user.status.updated'
-  | 'iam.user.roles.replaced'
-  | 'read.company.list'
-  | 'read.company.detail'
-  | 'read.student.list'
-  | 'read.student.detail'
-  | 'sync.pedagogical.run'
-  | 'sync.pedagogical.issue.resolved';
+export type AuditAction = string;
 
 export interface AuditActorUser {
   id: string;

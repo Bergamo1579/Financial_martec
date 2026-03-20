@@ -1,209 +1,140 @@
-/* ── Login ─────────────────────────────────────────────── */
-
 .page {
   display: grid;
   place-items: center;
   min-height: 100vh;
-  height: 100%;
-  padding: 1.25rem;
-  background: #f5f3ee;
-  overflow: hidden;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at top left, rgba(8, 76, 97, 0.12), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(217, 119, 6, 0.12), transparent 28%),
+    #f4f1ea;
 }
-
-/* ── Card ── */
 
 .card {
   display: grid;
-  grid-template-columns: 0.9fr 1fr;
-  width: min(860px, 100%);
-  border-radius: 14px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr);
+  width: min(920px, 100%);
+  border: 1px solid rgba(8, 76, 97, 0.08);
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 6px 24px rgba(0, 0, 0, 0.07);
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.12);
 }
-
-/* ── Brand panel (left) ── */
 
 .brand {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
-  padding: 2.25rem 1.75rem;
-  background: linear-gradient(168deg, #042a36 0%, #0b4f60 100%);
-  color: #fff;
+  gap: 1.2rem;
+  padding: 2.4rem 2rem;
+  background: linear-gradient(170deg, #062632 0%, #0f5565 54%, #126c82 100%);
+  color: #f8fbfc;
 }
 
 .badge {
-  font-size: 0.65rem;
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.72rem;
   font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: rgba(255, 255, 255, 0.5);
 }
 
 .headline {
   margin: 0;
-  font-size: clamp(1.75rem, 3.5vw, 2.3rem);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.04em;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
 }
 
 .tagline {
   margin: 0;
-  max-width: 30ch;
-  font-size: 0.84rem;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.62);
+  max-width: 34ch;
+  color: rgba(248, 251, 252, 0.76);
+  line-height: 1.7;
 }
 
 .perks {
-  list-style: none;
+  display: grid;
+  gap: 0.55rem;
   margin: auto 0 0;
-  padding: 0.75rem 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.44);
+  padding: 1rem 0 0;
+  list-style: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(248, 251, 252, 0.7);
+  font-size: 0.86rem;
 }
 
 .perks li::before {
-  content: '—  ';
+  content: '+ ';
 }
-
-/* ── Form panel (right) ── */
 
 .formSide {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 2.25rem 1.75rem;
+  padding: 2.4rem 2rem;
   background: #fff;
 }
 
 .formInner {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
+  display: grid;
+  gap: 0.8rem;
 }
 
 .formTitle {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  color: #1d2329;
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
 }
 
 .formSub {
-  margin: 0 0 0.2rem;
-  font-size: 0.85rem;
-  color: #62707c;
-  line-height: 1.5;
+  margin: 0;
+  color: #5f6d79;
+  line-height: 1.6;
 }
-
-/* ── Override global .field / .primary-button inside form ── */
 
 .formSide :global(.field) {
   gap: 0.35rem;
-  margin-top: 0.15rem;
+  margin-top: 0.3rem;
 }
 
 .formSide :global(.field) label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #475467;
+  font-size: 0.82rem;
+  color: #43515c;
 }
 
 .formSide :global(.field) input {
-  padding: 0.65rem 0.8rem;
-  border-radius: 8px;
-  border: 1px solid #d8dce2;
-  font-size: 0.88rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.formSide :global(.field) input::placeholder {
-  color: #a3adb8;
-}
-
-.formSide :global(.field) input:focus {
-  border-color: #0a5260;
-  box-shadow: 0 0 0 3px rgba(8, 76, 97, 0.09);
-  outline: none;
+  padding: 0.85rem 0.95rem;
+  border-radius: 10px;
 }
 
 .formSide :global(.primary-button) {
-  margin-top: 0.35rem;
-  padding: 0.72rem 1rem;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 650;
-  background: #084c61;
-  transition: background 0.2s ease, transform 0.12s ease;
+  margin-top: 0.5rem;
+  border-radius: 10px;
 }
-
-.formSide :global(.primary-button):hover:not(:disabled) {
-  background: #0a5e78;
-}
-
-.formSide :global(.primary-button):active:not(:disabled) {
-  transform: scale(0.988);
-}
-
-.formSide :global(.primary-button):disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.formSide :global(.error-text) {
-  font-size: 0.82rem;
-  margin: 0;
-}
-
-/* ── Footer note ── */
 
 .note {
   margin: 1.5rem 0 0;
   padding-top: 1rem;
-  border-top: 1px solid #eef0f3;
-  font-size: 0.78rem;
-  color: #667085;
+  border-top: 1px solid #eceff3;
+  font-size: 0.82rem;
+  color: #5f6d79;
 }
 
 .docsLink {
   color: #084c61;
-  font-weight: 600;
-  transition: color 0.15s ease;
+  font-weight: 700;
 }
 
-.docsLink:hover {
-  color: #0b6a82;
-}
-
-/* ── Responsive ── */
-
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   .card {
     grid-template-columns: 1fr;
   }
 
-  .brand {
-    padding: 1.5rem 1.25rem;
-  }
-
-  .headline {
-    font-size: 1.6rem;
-  }
-
-  .perks {
-    display: none;
-  }
-
+  .brand,
   .formSide {
-    padding: 1.5rem 1.25rem;
+    padding: 1.6rem 1.3rem;
   }
 }

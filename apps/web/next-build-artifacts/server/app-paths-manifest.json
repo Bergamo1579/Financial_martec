@@ -1,0 +1,15 @@
+{
+  "/api/auth/logout/route": "app/api/auth/logout/route.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/login/page": "app/login/page.js",
+  "/app/empresas/page": "app/app/empresas/page.js",
+  "/app/page": "app/app/page.js",
+  "/app/matriculas/page": "app/app/matriculas/page.js",
+  "/backoffice/permissoes/page": "app/backoffice/permissoes/page.js",
+  "/backoffice/page": "app/backoffice/page.js",
+  "/backoffice/roles/page": "app/backoffice/roles/page.js",
+  "/app/cadastros/page": "app/app/cadastros/page.js",
+  "/backoffice/empresas/page": "app/backoffice/empresas/page.js",
+  "/backoffice/usuarios/page": "app/backoffice/usuarios/page.js",
+  "/backoffice/alunos/page": "app/backoffice/alunos/page.js"
+}

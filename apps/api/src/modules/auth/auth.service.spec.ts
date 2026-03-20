@@ -1,6 +1,28 @@
 import argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
+import type { AuthenticatedUser } from './auth.types';
+
+const authenticatedUser: AuthenticatedUser = {
+  id: 'user-1',
+  name: 'Owner',
+  email: 'owner@financial.test',
+  sessionId: 'current-session',
+  status: 'ACTIVE' as const,
+  mfaEnabled: false,
+  roles: ['owner'],
+  permissions: ['companies.read'],
+  areas: ['BACKOFFICE'],
+  mustChangePassword: false,
+  defaultPath: '/backoffice',
+  lockReason: null,
+  lockedUntil: null,
+  navigation: {
+    items: [],
+    areas: ['BACKOFFICE'],
+    defaultPath: '/backoffice',
+  },
+};
 
 describe('AuthService', () => {
   it('returns secure cookie defaults for access and refresh tokens', () => {
@@ -75,13 +97,7 @@ describe('AuthService', () => {
       } as never,
     );
 
-    const sessions = await service.listSessions({
-      id: 'user-1',
-      email: 'owner@financial.test',
-      sessionId: 'current-session',
-      roles: ['owner'],
-      permissions: ['companies.read'],
-    });
+    const sessions = await service.listSessions(authenticatedUser);
 
     expect(sessions).toEqual([
       expect.objectContaining({
@@ -125,13 +141,23 @@ describe('AuthService', () => {
           passwordHash,
           status: 'ACTIVE',
           mfaEnabled: false,
+          mustChangePassword: false,
+          lockReason: null,
+          lockedUntil: null,
           roles: [
             {
               role: {
                 name: 'owner',
+                isActive: true,
+                scope: 'BACKOFFICE',
                 permissions: [
                   {
-                    permission: { name: 'companies.read' },
+                    permission: {
+                      name: 'companies.read',
+                      isActive: true,
+                      scope: 'BACKOFFICE',
+                      screens: [],
+                    },
                   },
                 ],
               },
@@ -159,13 +185,7 @@ describe('AuthService', () => {
     );
 
     const result = await service.changePassword(
-      {
-        id: 'user-1',
-        email: 'owner@financial.test',
-        sessionId: 'current-session',
-        roles: ['owner'],
-        permissions: ['companies.read'],
-      },
+      authenticatedUser,
       {
         currentPassword: 'CurrentPass123!',
         newPassword: 'NewPass456!',
@@ -182,7 +202,7 @@ describe('AuthService', () => {
     });
     const updateManyArgs = transactionClient.session.updateMany.mock.calls[0]?.[0];
     expect(updateManyArgs?.where.userId).toBe('user-1');
-    expect(redisDel).toHaveBeenCalledWith('session:other-session');
+    expect(redisDel).toHaveBeenCalledWith('session:other-session', 'session:current-session');
     expect(auditRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'auth.password.changed',
